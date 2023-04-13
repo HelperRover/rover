@@ -1,0 +1,30 @@
+<!-- This is a basic HTML header. It attaches the stylesheet and adds a title. -->
+<!doctype html>
+<html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <title>Robot Control</title>
+      <link rel="stylesheet" href="css/style.css">
+  </head>
+<!-- The body contains several divs that are styled with flexbox. It is a simple grid layout. -->
+  <body>
+    <div class="flex-container">
+      <!-- Clicking this div calls robotMove(1) -->
+      <div class="forward" onmousedown="robotMove(1)">Forward</div>
+    </div>
+    <div class="flex-container">
+      <!-- Clicking this div calls robotMove(2) -->
+      <div class="left" onmousedown="robotMove(2)">Left</div>
+      <!-- Clicking this div calls robotMove(5) -->
+      <div class="stop" onmousedown="robotMove(5)">Stop</div>
+      <!-- Clicking this div calls robotMove(3) -->
+      <div class="right" onmousedown="robotMove(3)">Right</div>
+    </div>
+    <div class="flex-container">
+      <!-- Clicking this div calls robotMove(4) -->
+      <div class="backward" onmousedown="robotMove(4)">Backward</div>
+    </div>
+    <!-- This is the script file with all the javascript -->
+    <script src="js/script.js"></script>
+  </body>
+</html>
