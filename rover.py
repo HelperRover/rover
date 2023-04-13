@@ -26,7 +26,7 @@ def action_right():
 @route('/forward')
 @route('/forwards')
 def action_forward():
-	rover.value(0.7, 0.9)
+	rover.value = (0.7, 0.9)
 	return "FORWARDS"
 
 @route('/back')
@@ -42,11 +42,15 @@ def action_back():
 
 @route('/')
 def index():
-    return static_file('index.html', root='public')
+    return static_file('index.html', root='./')
 
 @route('/style.css')
 def index():
-	return static_file('style.css', root='public')
+	return static_file('style.css', root='./')
+
+@route('/script.js')
+def index():
+	return static_file('script.js', root='./')
         
 # Start the webserver running on port 5000
 try: 
