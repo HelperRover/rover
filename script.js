@@ -24,7 +24,7 @@ function robotMove(direction) {
             url = "/stop"
             break;
         case 6:
-            url = "/stop"
+            url = "/automatic"
             break;
     }
 
