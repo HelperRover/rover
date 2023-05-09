@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 
-# Import all of the necessary libraries. 
-from bottle import route, run, static_file
+import base64
+import cv2
+import json
+from bottle import Bottle, request, response, static_file, view
+from geventwebsocket import WebSocketError
+from geventwebsocket.handler import WebSocketHandler
+from gevent.pywsgi import WSGIServer
+
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
@@ -10,9 +16,6 @@ automatic_mode = False
 turn_speed = 0.4
 left_speed = 0.4
 right_speed = 0.45
-
-# Change these for your setup.
-IP_ADDRESS = '192.168.0.93' # of your Pi
 
 # Set pins 17 and 18 to trigger and echo.
 pinTrigger = 17
@@ -26,24 +29,25 @@ reverseTime = 1
 rover = CamJamKitRobot()
 sensor = DistanceSensor(echo = pinEcho, trigger = pinTrigger)
 
-# This is the home, or index, route. It displays the index.html page.
-@route('/')
+app = Bottle()
+
+@app.route('/')
 def index():
     return static_file('index.html', root='./')
 
 # This route is for the style sheet.
-@route('/style.css')
-def index():
+@app.route('/style.css')
+def index_style():
 	return static_file('style.css', root='./')
 
 # This route is for the script.
-@route('/script.js')
-def index():
+@app.route('/script.js')
+def index_javascript():
 	return static_file('script.js', root='./')
 
 # This is the forward route. It is typically called via AJAX. 
-@route('/forward')
-@route('/forwards')
+@app.route('/forward')
+@app.route('/forwards')
 def action_forward():
         
     # This sets the left motor to 70% power and the 
@@ -53,8 +57,8 @@ def action_forward():
 	return "FORWARDS"
 
 # This is the backward route. It is typically called via AJAX.
-@route('/back')
-@route('/backward')
+@app.route('/back')
+@app.route('/backward')
 def action_back():
         
     # This sets the left motor to 70% reverse power and the 
@@ -64,7 +68,7 @@ def action_back():
 	return "BACKWARDS"
 
 # This is the left route. It is typically called via AJAX.
-@route('/left')
+@app.route('/left')
 def action_left():
         
     # Turn the robot left by setting custom motor speeds.
@@ -73,7 +77,7 @@ def action_left():
     return "LEFT TURN"
 
 # This is the right route. It is typically called via AJAX.
-@route('/right')
+@app.route('/right')
 def action_right():
         
     # Turn the robot right by setting custom motor speeds.
@@ -82,7 +86,7 @@ def action_right():
     return "RIGHT TURN"
 
 # This is the stop route. It is typically called via AJAX.
-@route('/stop')
+@app.route('/stop')
 def action_stop():
     global automatic_mode
 
@@ -95,7 +99,7 @@ def action_stop():
     return "STOP"
 
 # This is the automatic route. It is typically called via AJAX.
-@route('/automatic')
+@app.route('/automatic')
 def action_automatic():
     global automatic_mode
 
@@ -187,9 +191,40 @@ def avoidObstacle():
     rover.value = (left_speed, right_speed)
 
     return
-        
-# Start the webserver running on port 8080
-try: 
-    run(host=IP_ADDRESS, port=8080)
-finally:  
-    rover.cleanup()
+
+@app.route('/video_feed_thread')
+def video_feed():
+    ws = request.environ.get('wsgi.websocket')
+    if not ws:
+        abort(400, 'Expected WebSocket request.')
+
+    camera = cv2.VideoCapture(0)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    try:
+        while True:
+            ret, frame = camera.read()
+            if not ret:
+                break
+
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_base64 = base64.b64encode(buffer).decode('utf-8')
+
+            ws.send(json.dumps({'image': frame_base64}))
+
+    except WebSocketError:
+        pass
+    finally:
+        camera.release()
+
+def start_video_feed_server():
+    server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
+    server.serve_forever()
+
+if __name__ == '__main__':
+    video_thread = threading.Thread(target=start_video_feed_server)
+    video_thread.start()
+
+    app.run(host='0.0.0.0', port=8080)
+

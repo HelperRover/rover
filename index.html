@@ -1,34 +1,43 @@
-<!-- This is a basic HTML header. It attaches the stylesheet and adds a title. -->
-<!doctype html>
-<html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <title>Robot Control</title>
-      <link rel="stylesheet" href="style.css">
-  </head>
-<!-- The body contains several divs that are styled with flexbox. It is a simple grid layout. -->
-  <body>
-    <div class="flex-container">
-      <!-- Clicking this div calls robotMove(1) -->
-      <div class="forward" onmousedown="robotMove(1)">Forward</div>
-    </div>
-    <div class="flex-container">
-      <!-- Clicking this div calls robotMove(2) -->
-      <div class="left" onmousedown="robotMove(2)">Left</div>
-      <!-- Clicking this div calls robotMove(5) -->
-      <div class="stop" onmousedown="robotMove(5)">Stop</div>
-      <!-- Clicking this div calls robotMove(3) -->
-      <div class="right" onmousedown="robotMove(3)">Right</div>
-    </div>
-    <div class="flex-container">
-      <!-- Clicking this div calls robotMove(4) -->
-      <div class="backward" onmousedown="robotMove(4)">Backward</div>
-    </div>
-    <div class="flex-container">
-      <!-- New container with the "automatic" class -->
-      <div class="automatic" onmousedown="robotMove(6)">Automatic</div>
-    </div>
-    <!-- This is the script file with all the javascript -->
-    <script src="script.js"></script>
-  </body>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Robot Control</title>
+  <link rel="stylesheet" href="style.css"></link>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script> -->
+  <script src="script.js"></script>
+</head>
+<body>
+  <div class="flex-container">
+    <!-- Clicking this div calls robotMove(1) -->
+    <div class="forward" onclick="robotMove(1)">Forward</div>
+  </div>
+  <div class="flex-container">
+    <!-- Clicking this div calls robotMove(2) -->
+    <div class="left" onclick="robotMove(2)">Left</div>
+    <!-- Clicking this div calls robotMove(5) -->
+    <div class="stop" onclick="robotMove(5)">Stop</div>
+    <!-- Clicking this div calls robotMove(3) -->
+    <div class="right" onclick="robotMove(3)">Right</div>
+  </div>
+  <div class="flex-container">
+    <!-- Clicking this div calls robotMove(4) -->
+    <div class="backward" onclick="robotMove(4)">Backward</div>
+  </div>
+  <div class="flex-container">
+    <!-- New container with the "automatic" class -->
+    <div class="automatic" onclick="robotMove(6)">Automatic</div>
+  </div>
+  <!-- This is the script file with all the javascript -->
+  <script src="script.js"></script>
+  <!-- Camera image using websockets-->
+  <img id="video" width="640" height="480">
+  <script>
+    var ws = new WebSocket('ws://' + location.hostname + ':8081/video_feed_thread');
+    ws.onmessage = function(event) {
+      var data = JSON.parse(event.data);
+      document.getElementById('video').src = 'data:image/jpeg;base64,' + data.image;
+    };
+</script>
+
+</body>
 </html>
