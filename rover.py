@@ -12,6 +12,9 @@ from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
 
+import serial
+import json
+
 automatic_mode = False
 turn_speed = 0.4
 left_speed = 0.4
@@ -218,13 +221,49 @@ def video_feed():
     finally:
         camera.release()
 
+@app.route('/temperature')
+def read_temperature_from_pico():
+    with serial.Serial('/dev/ttyACM0', 115200) as pico_serial:
+        while True:
+            try:
+                temperature_data = pico_serial.readline().decode("utf-8","ignore")
+                return temperature_data
+
+            except ValueError:
+                return None
+            
+@app.route('/temperature_feed_thread')
+def temperature_feed():
+    ws = request.environ.get('wsgi.websocket')
+    if not ws:
+        abort(400, 'Expected WebSocket request.')
+
+    try:
+        while True:
+            temperature_data = read_temperature_from_pico()
+            if temperature_data:
+                ws.send(json.dumps({'temperature_data': temperature_data}))
+            time.sleep(1)
+
+    except WebSocketError:
+        pass
+
+
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
     server.serve_forever()
 
+def start_temperature_feed_server():
+    server = WSGIServer(('0.0.0.0', 8082), app, handler_class=WebSocketHandler)
+    server.serve_forever()
+
+
 if __name__ == '__main__':
     video_thread = threading.Thread(target=start_video_feed_server)
     video_thread.start()
+
+    temperature_thread = threading.Thread(target=start_temperature_feed_server)
+    temperature_thread.start()
 
     app.run(host='0.0.0.0', port=8080)
 
