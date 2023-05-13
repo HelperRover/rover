@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Robot Control</title>
-  <link rel="stylesheet" href="style.css"></link>
+  <link rel="stylesheet" href="style.css">
+  </link>
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script> -->
   <script src="script.js"></script>
 </head>
+
 <body>
   <div class="flex-container">
     <!-- Clicking this div calls robotMove(1) -->
@@ -27,17 +30,34 @@
     <!-- New container with the "automatic" class -->
     <div class="automatic" onclick="robotMove(6)">Automatic</div>
   </div>
-  <!-- This is the script file with all the javascript -->
-  <script src="script.js"></script>
-  <!-- Camera image using websockets-->
+
   <img id="video" width="640" height="480">
+
+  <div class="flex-container">
+    <div class="temperature-display">Temperature: <span id="temperature-value">N/A</span></div>
+    <div class="humidity-display">Humidity: <span id="humidity-value">N/A</span></div>
+  </div>
+
   <script>
     var ws = new WebSocket('ws://' + location.hostname + ':8081/video_feed_thread');
-    ws.onmessage = function(event) {
+    ws.onmessage = function (event) {
       var data = JSON.parse(event.data);
       document.getElementById('video').src = 'data:image/jpeg;base64,' + data.image;
     };
-</script>
+  </script>
 
+  <script>
+    var temp_ws = new WebSocket('ws://' + location.hostname + ':8082/temperature_feed_thread');
+    temp_ws.onmessage = function (event) {
+      var data = JSON.parse(event.data);
+      var temp_humid_values = data.temperature_data.split(",");
+      document.getElementById('temperature-value').innerText = temp_humid_values[0] + "°C";
+      document.getElementById('humidity-value').innerText = temp_humid_values[1] + "%";
+    };
+  </script>
+
+  <!-- This is the script file with all the javascript -->
+  <script src="script.js"></script>
 </body>
+
 </html>

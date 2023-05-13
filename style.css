@@ -22,3 +22,8 @@ border and content. */
     justify-content: center;
     align-items: center;
 }
+
+/* #video {
+    transform: scaleY(-1);
+  } */
+  
