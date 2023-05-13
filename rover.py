@@ -201,15 +201,27 @@ def video_feed():
     if not ws:
         abort(400, 'Expected WebSocket request.')
 
+    face_cascade = cv2.CascadeClassifier(
+        "./haarcascade_frontalface_default.xml"
+    )
+
     camera = cv2.VideoCapture(0)
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
     try:
         while True:
-            ret, frame = camera.read()
+            ret, frame = camera.read() 
             if not ret:
                 break
+
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+            )
+
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
             _, buffer = cv2.imencode('.jpg', frame)
             frame_base64 = base64.b64encode(buffer).decode('utf-8')
@@ -266,4 +278,3 @@ if __name__ == '__main__':
     temperature_thread.start()
 
     app.run(host='0.0.0.0', port=8080)
-
