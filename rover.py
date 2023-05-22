@@ -3,6 +3,7 @@
 import base64
 import cv2
 import json
+import Adafruit_DHT
 from bottle import Bottle, request, response, static_file, view
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
@@ -12,9 +13,6 @@ from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
 
-import serial
-import json
-
 automatic_mode = False
 turn_speed = 0.4
 left_speed = 0.4
@@ -23,6 +21,9 @@ right_speed = 0.45
 # Set pins 17 and 18 to trigger and echo.
 pinTrigger = 17
 pinEcho = 18
+
+# DHT22 sensor connected to pin 25.
+dht22_pin = 25
 
 # Set some basic constants for use in automatic control.
 howNear = 65.0
@@ -234,16 +235,13 @@ def video_feed():
         camera.release()
 
 @app.route('/temperature')
-def read_temperature_from_pico():
-    with serial.Serial('/dev/ttyACM0', 115200) as pico_serial:
-        while True:
-            try:
-                temperature_data = pico_serial.readline().decode("utf-8","ignore")
-                return temperature_data
+def read_temperature():
+    humidity, temperature = Adafruit_DHT.read_retry(Adafruit_DHT.DHT22, dht22_pin)
+    if humidity is not None and temperature is not None:
+        return "{0:.2f},{1:.2f}".format(temperature, humidity)
+    else:
+        return "Failed to get reading. Try again!"
 
-            except ValueError:
-                return None
-            
 @app.route('/temperature_feed_thread')
 def temperature_feed():
     ws = request.environ.get('wsgi.websocket')
@@ -252,14 +250,13 @@ def temperature_feed():
 
     try:
         while True:
-            temperature_data = read_temperature_from_pico()
+            temperature_data = read_temperature()
             if temperature_data:
                 ws.send(json.dumps({'temperature_data': temperature_data}))
             time.sleep(1)
 
     except WebSocketError:
         pass
-
 
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
