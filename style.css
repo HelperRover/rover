@@ -37,3 +37,13 @@ div.temperature-display,
 div.humidity-display {
     background: #4caf50;
 }
+
+.image-container {
+    position: relative;
+}
+
+.thermal-container {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
