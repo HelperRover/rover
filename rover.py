@@ -296,7 +296,7 @@ def thermal_feed():
             fig.canvas.blit(ax.bbox)
             fig.canvas.flush_events()
 
-            _, buffer = cv2.imencode('.jpg', fig.canvas.buffer_rgba())
+            _, buffer = cv2.imencode('.jpg', np.asarray(fig.canvas.buffer_rgba()))
             thermal_image_base64 = base64.b64encode(buffer).decode('utf-8')
 
             ws.send(json.dumps({'thermal_image': thermal_image_base64}))
