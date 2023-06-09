@@ -38,6 +38,7 @@
       </div>
     </div>
     <div class="video-container"><img id="video" width="640" height="480"></div>
+    <div class="thermal-container"><img id="thermal" width="640" height="480"></div>
   </div>
 
   <script>
@@ -55,6 +56,14 @@
       var temp_humid_values = data.temperature_data.split(",");
       document.getElementById('temperature-value').innerText = temp_humid_values[0] + "°C";
       document.getElementById('humidity-value').innerText = temp_humid_values[1] + "%";
+    };
+  </script>
+
+  <script>
+    var thermal_ws = new WebSocket('ws://' + location.hostname + ':8083/thermal_feed_thread');
+    thermal_ws.onmessage = function (event) {
+      var data = JSON.parse(event.data);
+      document.getElementById('thermal').src = 'data:image/jpeg;base64,' + data.thermal_image;
     };
   </script>
 

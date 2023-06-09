@@ -9,6 +9,10 @@ from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 from gevent.pywsgi import WSGIServer
 
+import amg8833_i2c
+import numpy as np
+import matplotlib.pyplot as plt
+
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
@@ -258,6 +262,48 @@ def temperature_feed():
     except WebSocketError:
         pass
 
+@app.route('/thermal_feed_thread')
+def thermal_feed():
+    ws = request.environ.get('wsgi.websocket')
+    if not ws:
+        abort(400, 'Expected WebSocket request.')
+
+    sensor = amg8833_i2c.AMG8833(addr=0x69)
+
+    plt.rcParams.update({'font.size':16})
+    fig_dims = (12,9) # figure size
+    fig,ax = plt.subplots(figsize=fig_dims) # start figure
+    pix_res = (8,8) # pixel resolution
+    zz = np.zeros(pix_res) # set array with zeros first
+    im1 = ax.imshow(zz,vmin=15,vmax=40) # plot image, with temperature bounds
+    cbar = fig.colorbar(im1,fraction=0.0475,pad=0.03) # colorbar
+    cbar.set_label('Temperature [C]',labelpad=10) # temp. label
+    fig.canvas.draw() # draw figure
+
+    ax_bgnd = fig.canvas.copy_from_bbox(ax.bbox) # background for speeding up runs
+
+    pix_to_read = 64
+    try:
+        while True:
+            status, pixels = sensor.read_temp(pix_to_read)
+            if status:
+                continue
+
+            T_thermistor = sensor.read_thermistor()
+            fig.canvas.restore_region(ax_bgnd)
+            im1.set_data(np.reshape(pixels, pix_res))
+            ax.draw_artist(im1)
+            fig.canvas.blit(ax.bbox)
+            fig.canvas.flush_events()
+
+            _, buffer = cv2.imencode('.jpg', fig.canvas.buffer_rgba())
+            thermal_image_base64 = base64.b64encode(buffer).decode('utf-8')
+
+            ws.send(json.dumps({'thermal_image': thermal_image_base64}))
+
+    except WebSocketError:
+        pass
+
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
     server.serve_forever()
@@ -266,6 +312,9 @@ def start_temperature_feed_server():
     server = WSGIServer(('0.0.0.0', 8082), app, handler_class=WebSocketHandler)
     server.serve_forever()
 
+def start_thermal_feed_server():
+    server = WSGIServer(('0.0.0.0', 8083), app, handler_class=WebSocketHandler)
+    server.serve_forever()
 
 if __name__ == '__main__':
     video_thread = threading.Thread(target=start_video_feed_server)
@@ -273,5 +322,8 @@ if __name__ == '__main__':
 
     temperature_thread = threading.Thread(target=start_temperature_feed_server)
     temperature_thread.start()
+
+    thermal_thread = threading.Thread(target=start_thermal_feed_server)
+    thermal_thread.start()
 
     app.run(host='0.0.0.0', port=8080)
