@@ -14,6 +14,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
+from scipy import interpolate
+
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
@@ -263,6 +265,25 @@ def temperature_feed():
     except WebSocketError:
         pass
 
+# Interpolation Properties
+pix_res = (8,8) # pixel resolution
+xx,yy = (np.linspace(0,pix_res[0],pix_res[0]),
+                    np.linspace(0,pix_res[1],pix_res[1]))
+zz = np.zeros(pix_res) # set array with zeros first
+# new resolution
+pix_mult = 6 # multiplier for interpolation 
+interp_res = (int(pix_mult*pix_res[0]),int(pix_mult*pix_res[1]))
+grid_x,grid_y = (np.linspace(0,pix_res[0],interp_res[0]),
+                            np.linspace(0,pix_res[1],interp_res[1]))
+
+# interp function
+def interp(z_var):
+    # cubic interpolation on the image
+    # at a resolution of (pix_mult*8 x pix_mult*8)
+    f = interpolate.interp2d(xx,yy,z_var,kind='cubic')
+    return f(grid_x,grid_y)
+grid_z = interp(zz) # interpolated image
+
 @app.route('/thermal_feed_thread')
 def thermal_feed():
     ws = request.environ.get('wsgi.websocket')
@@ -290,10 +311,12 @@ def thermal_feed():
             status, pixels = sensor.read_temp(pix_to_read)
             if status:
                 continue
+            new_z = interp(np.reshape(pixels, pix_res)) # interpolated image
+
 
             T_thermistor = sensor.read_thermistor()
             fig.canvas.restore_region(ax_bgnd)
-            im1.set_data(np.reshape(pixels, pix_res))
+            im1.set_data(new_z)
             ax.draw_artist(im1)
             fig.canvas.blit(ax.bbox)
             fig.canvas.flush_events()
