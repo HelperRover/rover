@@ -12,6 +12,7 @@ from gevent.pywsgi import WSGIServer
 import amg8833_i2c
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
@@ -276,6 +277,7 @@ def thermal_feed():
     pix_res = (8,8) # pixel resolution
     zz = np.zeros(pix_res) # set array with zeros first
     im1 = ax.imshow(zz,vmin=15,vmax=40) # plot image, with temperature bounds
+    ax.axis('off') # this line removes the axes
     cbar = fig.colorbar(im1,fraction=0.0475,pad=0.03) # colorbar
     cbar.set_label('Temperature [C]',labelpad=10) # temp. label
     fig.canvas.draw() # draw figure
@@ -296,7 +298,15 @@ def thermal_feed():
             fig.canvas.blit(ax.bbox)
             fig.canvas.flush_events()
 
-            _, buffer = cv2.imencode('.jpg', np.asarray(fig.canvas.buffer_rgba()))
+            # Convert the matplotlib figure to a PIL Image
+            pil_image = Image.frombytes('RGBA', fig.canvas.get_width_height(), 
+                                        fig.canvas.tostring_argb())
+
+            # Convert the PIL Image to a numpy array
+            numpy_image = np.array(pil_image)
+
+            # Now you can encode the numpy array
+            _, buffer = cv2.imencode('.jpg', numpy_image)
             thermal_image_base64 = base64.b64encode(buffer).decode('utf-8')
 
             ws.send(json.dumps({'thermal_image': thermal_image_base64}))
