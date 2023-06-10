@@ -9,6 +9,13 @@ from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 from gevent.pywsgi import WSGIServer
 
+import amg8833_i2c
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+
+from scipy import interpolate
+
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
@@ -258,6 +265,79 @@ def temperature_feed():
     except WebSocketError:
         pass
 
+# Interpolation Properties
+pix_res = (8,8) # pixel resolution
+xx,yy = (np.linspace(0,pix_res[0],pix_res[0]),
+                    np.linspace(0,pix_res[1],pix_res[1]))
+zz = np.zeros(pix_res) # set array with zeros first
+# new resolution
+pix_mult = 6 # multiplier for interpolation 
+interp_res = (int(pix_mult*pix_res[0]),int(pix_mult*pix_res[1]))
+grid_x,grid_y = (np.linspace(0,pix_res[0],interp_res[0]),
+                            np.linspace(0,pix_res[1],interp_res[1]))
+
+# interp function
+def interp(z_var):
+    # cubic interpolation on the image
+    # at a resolution of (pix_mult*8 x pix_mult*8)
+    f = interpolate.interp2d(xx,yy,z_var,kind='cubic')
+    return f(grid_x,grid_y)
+grid_z = interp(zz) # interpolated image
+
+@app.route('/thermal_feed_thread')
+def thermal_feed():
+    ws = request.environ.get('wsgi.websocket')
+    if not ws:
+        abort(400, 'Expected WebSocket request.')
+
+    sensor = amg8833_i2c.AMG8833(addr=0x69)
+
+    plt.rcParams.update({'font.size':16})
+    fig_dims = (12,9) # figure size
+    fig,ax = plt.subplots(figsize=fig_dims) # start figure
+    pix_res = (8,8) # pixel resolution
+    zz = np.zeros(pix_res) # set array with zeros first
+    im1 = ax.imshow(zz,vmin=15,vmax=40) # plot image, with temperature bounds
+    ax.axis('off') # this line removes the axes
+    # cbar = fig.colorbar(im1,fraction=0.0475,pad=0.03) # colorbar
+    # cbar.set_label('Temperature [C]',labelpad=10) # temp. label
+    fig.canvas.draw() # draw figure
+
+    ax_bgnd = fig.canvas.copy_from_bbox(ax.bbox) # background for speeding up runs
+
+    pix_to_read = 64
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0) # this line removes the white space
+    try:
+        while True:
+            status, pixels = sensor.read_temp(pix_to_read)
+            if status:
+                continue
+            new_z = interp(np.reshape(pixels, pix_res)) # interpolated image
+
+
+            T_thermistor = sensor.read_thermistor()
+            fig.canvas.restore_region(ax_bgnd)
+            im1.set_data(new_z)
+            ax.draw_artist(im1)
+            fig.canvas.blit(ax.bbox)
+            fig.canvas.flush_events()
+
+            # Convert the matplotlib figure to a PIL Image
+            pil_image = Image.frombytes('RGBA', fig.canvas.get_width_height(), 
+                                        fig.canvas.tostring_argb())
+
+            # Convert the PIL Image to a numpy array
+            numpy_image = np.array(pil_image)
+
+            # Now you can encode the numpy array
+            _, buffer = cv2.imencode('.jpg', numpy_image)
+            thermal_image_base64 = base64.b64encode(buffer).decode('utf-8')
+
+            ws.send(json.dumps({'thermal_image': thermal_image_base64}))
+
+    except WebSocketError:
+        pass
+
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
     server.serve_forever()
@@ -266,6 +346,9 @@ def start_temperature_feed_server():
     server = WSGIServer(('0.0.0.0', 8082), app, handler_class=WebSocketHandler)
     server.serve_forever()
 
+def start_thermal_feed_server():
+    server = WSGIServer(('0.0.0.0', 8083), app, handler_class=WebSocketHandler)
+    server.serve_forever()
 
 if __name__ == '__main__':
     video_thread = threading.Thread(target=start_video_feed_server)
@@ -273,5 +356,8 @@ if __name__ == '__main__':
 
     temperature_thread = threading.Thread(target=start_temperature_feed_server)
     temperature_thread.start()
+
+    thermal_thread = threading.Thread(target=start_thermal_feed_server)
+    thermal_thread.start()
 
     app.run(host='0.0.0.0', port=8080)
