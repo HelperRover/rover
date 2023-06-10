@@ -299,13 +299,14 @@ def thermal_feed():
     zz = np.zeros(pix_res) # set array with zeros first
     im1 = ax.imshow(zz,vmin=15,vmax=40) # plot image, with temperature bounds
     ax.axis('off') # this line removes the axes
-    cbar = fig.colorbar(im1,fraction=0.0475,pad=0.03) # colorbar
-    cbar.set_label('Temperature [C]',labelpad=10) # temp. label
+    # cbar = fig.colorbar(im1,fraction=0.0475,pad=0.03) # colorbar
+    # cbar.set_label('Temperature [C]',labelpad=10) # temp. label
     fig.canvas.draw() # draw figure
 
     ax_bgnd = fig.canvas.copy_from_bbox(ax.bbox) # background for speeding up runs
 
     pix_to_read = 64
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0) # this line removes the white space
     try:
         while True:
             status, pixels = sensor.read_temp(pix_to_read)
