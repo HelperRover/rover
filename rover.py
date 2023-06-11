@@ -64,6 +64,10 @@ def index_style():
 def index_javascript():
 	return static_file('script.js', root='./')
 
+@app.route('/recording.wav')
+def index_style():
+	return static_file('recording.wav', root='./')
+
 # This is the forward route. It is typically called via AJAX. 
 @app.route('/forward')
 @app.route('/forwards')
