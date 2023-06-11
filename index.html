@@ -42,6 +42,7 @@
       <div class="thermal-container"><img id="thermal"></div>
     </div>
     <audio id="audio" controls></audio>
+    <input type="range" id="volume" min="0" max="1" value="0.5" step="0.01">
   </div>
 
   <script>
@@ -71,21 +72,48 @@
   </script>
 
 <script>
-  const audio = document.getElementById('audio');
+  function stringToArrayBuffer(str) {
+    const buf = new ArrayBuffer(str.length);
+    const bufView = new Uint8Array(buf);
+    for (let i = 0, strLen = str.length; i < strLen; i++) {
+      bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+  }
+
+  const audioContext = new AudioContext();
+  const gainNode = audioContext.createGain();
+  gainNode.connect(audioContext.destination);
+
+  document.getElementById('volume').addEventListener('input', (event) => {
+    gainNode.gain.value = event.target.value;
+  });
+
   var audio_ws = new WebSocket('ws://' + location.hostname + ':8084/audio_feed_thread');
 
-  audio_ws.onmessage = (event) => {
-    console.log(event)
-    const data = JSON.parse(event.data);
-    const audioData = data.audio_data;
-    // Process the audio data here
-    console.log(audioData)
-  };
+  audio_ws.onmessage = async (event) => {
+  console.log(event);
+  const data = JSON.parse(event.data);
+  const audioData = data.audio_data;
+
+  // Convert ISO-8859-1 encoded string to ArrayBuffer
+  const arrayBuffer = stringToArrayBuffer(audioData);
+
+  // Decode the received audio data
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+  // Create an AudioBufferSourceNode and connect it to the GainNode
+  const source = audioContext.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(gainNode);
+
+  // Start playing the audio
+  source.start();
+};
 
   ws.onclose = (event) => {
     console.log("WebSocket closed");
   };
-
 </script>
 
   <!-- This is the script file with all the javascript -->

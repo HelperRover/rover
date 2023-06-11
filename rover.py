@@ -24,6 +24,8 @@ import threading
 import sounddevice as sd
 from scipy.io import wavfile
 from queue import Queue
+from io import BytesIO
+from pydub import AudioSegment
 
 automatic_mode = False
 turn_speed = 0.4
@@ -355,13 +357,46 @@ def audio_feed():
         audio_data = indata.tolist()
         audio_queue.put(audio_data)
 
+    def pad_audio_data(data, sample_width, channels):
+        required_length = sample_width * channels
+        remainder = len(data) % required_length
+        if remainder == 0:
+            return data
+
+        padding_length = required_length - remainder
+        padding = [0.0] * padding_length
+        return data + padding
+
     try:
         with sd.InputStream(callback=callback):
             while not ws.closed:
                 if not audio_queue.empty():
                     audio_data = audio_queue.get()
-                    ws.send(json.dumps({'audio_data': audio_data}))
+
+                    # Flatten the audio_data list
+                    flattened_audio_data = [item for sublist in audio_data for item in sublist]
+
+                    # Pad audio data to make its length a multiple of (sample_width * channels)
+                    padded_audio_data = pad_audio_data(flattened_audio_data, sample_width=2, channels=1)
+
+                    # Convert list of float values to bytes
+                    audio_data_bytes = np.array(padded_audio_data, dtype=np.float32).tobytes()
+
+                    # Convert raw audio data to WAV format
+                    audio_segment = AudioSegment(
+                        audio_data_bytes,
+                        frame_rate=44100,  # Adjust according to your audio settings
+                        sample_width=2,  # Adjust according to your audio settings
+                        channels=1  # Adjust according to your audio settings
+                    )
+                    wav_buffer = BytesIO()
+                    audio_segment.export(wav_buffer, format="wav")
+                    wav_buffer.seek(0)
+                    wav_data = wav_buffer.read()
+
+                    ws.send(json.dumps({'audio_data': wav_data.decode('ISO-8859-1')}))
                 sleep(0.1)
+
     except WebSocketError:
         pass
 
