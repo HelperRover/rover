@@ -341,37 +341,23 @@ def thermal_feed():
     except WebSocketError:
         pass
 
+def callback(indata, outdata, frames, time, status):
+    if status:
+        print(status)
+    outdata[:] = indata
+
 @app.route('/audio_feed_thread')
 def audio_feed():
     # ws = request.environ.get('wsgi.websocket')
     # if not ws:
     #     abort(400, 'Expected WebSocket request.')
 
-    device = sd.default.device
-
-    # Set the sample rate and number of channels
-    sample_rate = 44100
-    channels = 1
-
-    duration = 0.1 # adjust as needed
-    
-    while True:
-        # Record audio from the microphone
+    with sd.Stream(callback=callback):
         print("Listening... Press 'q' to quit.")
-        audio = sd.rec(
-            int(sample_rate * 5),
-            samplerate=sample_rate,
-            channels=channels,
-            device=device,
-        )
-        sd.wait()
-
-        # Save the recorded audio to a WAV file
-        wavfile.write("recording.wav", sample_rate, audio)
-
-         # Check if the user wants to quit
-        if input("Press 'q' to quit, or any other key to continue: ") == "q":
-            break
+        while True:
+            response = input()
+            if response == 'q':
+                break
 
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
