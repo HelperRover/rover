@@ -348,60 +348,31 @@ def thermal_feed():
 
 @app.route('/audio_feed_thread')
 def audio_feed():
-    ws = request.environ.get('wsgi.websocket')
-    if not ws:
-        abort(400, 'Expected WebSocket request.')
+    device = sd.default.device
 
-    audio_queue = Queue()
-
-    class AudioSettings:
-        def __init__(self, sample_rate, channels, dtype):
-            self.sample_rate = sample_rate
-            self.channels = channels
-            self.dtype = dtype
-            self.itemsize = np.dtype(dtype).itemsize
-
-    # Set the desired sample rate, channels, and dtype
+    # Set the sample rate and number of channels
     sample_rate = 44100
     channels = 1
-    dtype = np.int16
 
-    audio_settings = AudioSettings(sample_rate, channels, dtype)
+    duration = 0.1 # adjust as needed
+    
+    while True:
+        # Record audio from the microphone
+        print("Listening... Press 'q' to quit.")
+        audio = sd.rec(
+            int(sample_rate * 5),
+            samplerate=sample_rate,
+            channels=channels,
+            device=device,
+        )
+        sd.wait()
 
-    def callback(indata, outdata, frames, time, status):
-        # Scale float32 data from [-1, 1] to 16-bit PCM [-32768, 32767]
-        audio_data = (indata * 32767).astype(np.int16)
-        audio_data_bytes = audio_data.tobytes()
-        audio_queue.put(audio_data_bytes)
+        # Save the recorded audio to a WAV file
+        wavfile.write("recording.wav", sample_rate, audio)
 
-    try:
-        with sd.Stream(callback=callback, samplerate=audio_settings.sample_rate, channels=audio_settings.channels, dtype=audio_settings.dtype):
-            while not ws.closed:
-                if not audio_queue.empty():
-                    audio_data_bytes = audio_queue.get()
-
-                    # Convert raw audio data to WAV format
-                    sample_width = audio_settings.itemsize
-                    audio_segment = AudioSegment(
-                        audio_data_bytes,
-                        frame_rate=audio_settings.sample_rate,
-                        sample_width=sample_width,
-                        channels=audio_settings.channels
-                    )
-
-                    play(audio_segment)
-                    wav_buffer = BytesIO()
-                    audio_segment.export(wav_buffer, format="wav")
-
-                    print("Sending: ", wav_buffer.getvalue()[:100])  # Print first 100 bytes
-
-                    # Send audio data over WebSocket
-                    ws.send(wav_buffer.getvalue(), binary=True)
-
-                sleep(0.1)
-
-    except WebSocketError:
-        pass
+         # Check if the user wants to quit
+        if input("Press 'q' to quit, or any other key to continue: ") == "q":
+            break
 
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)

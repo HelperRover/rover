@@ -41,8 +41,8 @@
       <div class="video-container"><img id="video" width="640" height="480"></div>
       <div class="thermal-container"><img id="thermal"></div>
     </div>
-    <audio id="audio" controls></audio>
-    <input type="range" id="volume" min="0" max="1" value="0.5" step="0.01">s
+    <audio id="audio" controls src="recording.wav"></audio>
+    <button onclick="makeGetRequest()">Record</button>
   </div>
 
   <script>
@@ -71,54 +71,25 @@
     };
   </script>
 
-<script>
- 
-  const audioContext = new AudioContext();
-  console.log(audioContext.sampleRate)
-  const gainNode = audioContext.createGain();
-  gainNode.connect(audioContext.destination);
+  <script>
+    function makeGetRequest() {
+      fetch('http://' + location.hostname + ':8084/audio_feed_thread')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log(data);
+        })
+        .catch(error => {
+          console.error('There was a problem with the fetch operation:', error);
+        });
+    }
 
-  document.getElementById('volume').addEventListener('input', (event) => {
-    gainNode.gain.value = event.target.value;
-  });
+  </script>
 
-  var audio_ws = new WebSocket('ws://' + location.hostname + ':8084/audio_feed_thread');
-
-  audio_ws.onmessage = async (event) => {
-    // console.log("Received: ", event.data)
-    // console.log("Received: ", new Uint8Array(event.data.slice(0, 100)));  // Log first 100 bytes
-    // console.log(event);
-    var arrayBuffer;
-    var fileReader = new FileReader();
-    fileReader.onload = async function() {
-      arrayBuffer = this.result;
-
-      // // Log the byte length of the array buffer
-      // console.log("ArrayBuffer byte length: ", arrayBuffer.byteLength);
-
-      try {
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-        // Create an AudioBufferSourceNode and connect it to the GainNode
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(gainNode);
-
-        // Start playing the audio
-        source.start();
-      }
-      catch(e) {
-        console.error('Error decoding audio data: ', e)
-      }
-      
-    };
-    fileReader.readAsArrayBuffer(event.data);
-  };
-
-  ws.onclose = (event) => {
-    console.log("WebSocket closed");
-  };
-</script>
 
   <!-- This is the script file with all the javascript -->
   <script src="script.js"></script>
