@@ -364,34 +364,31 @@ def audio_feed():
     # Set the desired sample rate, channels, and dtype
     sample_rate = 44100
     channels = 1
-    dtype = np.float32
+    dtype = np.int16
 
     audio_settings = AudioSettings(sample_rate, channels, dtype)
 
     def callback(indata, outdata, frames, time, status):
-        audio_data = indata.tolist()
-        audio_queue.put(audio_data)
+        # Scale float32 data from [-1, 1] to 16-bit PCM [-32768, 32767]
+        audio_data = (indata * 32767).astype(np.int16)
+        audio_data_bytes = audio_data.tobytes()
+        audio_queue.put(audio_data_bytes)
 
     try:
         with sd.Stream(callback=callback, samplerate=audio_settings.sample_rate, channels=audio_settings.channels, dtype=audio_settings.dtype):
             while not ws.closed:
                 if not audio_queue.empty():
-                    audio_data = audio_queue.get()
-
-                    # Flatten the audio_data list
-                    flattened_audio_data = [item for sublist in audio_data for item in sublist]
-
-                    # Convert list of float values to bytes
-                    audio_data_bytes = np.array(flattened_audio_data, dtype=audio_settings.dtype).tobytes()
+                    audio_data_bytes = audio_queue.get()
 
                     # Convert raw audio data to WAV format
-                    sample_width = audio_settings.itemsize * audio_settings.channels
+                    sample_width = audio_settings.itemsize
                     audio_segment = AudioSegment(
                         audio_data_bytes,
                         frame_rate=audio_settings.sample_rate,
                         sample_width=sample_width,
                         channels=audio_settings.channels
                     )
+
                     play(audio_segment)
                     wav_buffer = BytesIO()
                     audio_segment.export(wav_buffer, format="wav")
