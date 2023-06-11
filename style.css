@@ -55,3 +55,26 @@ div.humidity-display {
     height: 100%;
     object-fit: cover;
 }
+
+#audio {
+    position: absolute;
+    bottom: 15px;
+    left: 10px;
+}
+
+#record {
+    position: absolute;
+    bottom: 15px;
+    right: 10px;
+    padding: 14px;
+    border-radius: 15px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+#audio-response {
+    position: absolute;
+    top: 10px;
+    color: white;
+    left: 10px;
+}

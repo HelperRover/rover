@@ -40,12 +40,12 @@
     <div class="image-container">
       <div class="video-container"><img id="video" width="640" height="480"></div>
       <div class="thermal-container"><img id="thermal"></div>
+      <audio id="audio" controls>
+        <source id="audioSource" src="recording.wav" type="audio/wav">
+      </audio>
+      <button id="record" onclick="makeGetRequest()">Listen</button>
+      <div id="audio-response"></div>
     </div>
-    <audio id="audio" controls>
-      <source id="audioSource" src="recording.wav" type="audio/wav">
-    </audio>
-    <button onclick="makeGetRequest()">Record</button>
-    <div id="audio-response"></div>
   </div>
 
   <script>
@@ -75,16 +75,16 @@
   </script>
 
   <script>
-    function makeGetRequest() {
       function makeGetRequest() {
-        fetch('http://' + location.hostname + ':8084/audio_feed_thread', {mode: 'no-cors'})
+        console.log('pushed')
+        fetch('http://' + location.hostname + ':8084/audio_feed_thread')
           .then(response => response.text())
           .then(data => {
+            console.log(data)
             document.getElementById('audio-response').innerHTML = data;
           })
           .catch(error => console.error(error));
       }
-    }
 
   </script>
 
