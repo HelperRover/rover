@@ -27,6 +27,7 @@ from queue import Queue
 from io import BytesIO
 from pydub import AudioSegment
 from pydub.playback import play
+import speech_recognition as sr
 
 automatic_mode = False
 turn_speed = 0.4
@@ -354,6 +355,22 @@ def thermal_feed():
     except WebSocketError:
         pass
 
+def recognize_google(audio, sample_rate):
+    # Create a recognizer object
+    r = sr.Recognizer()
+
+    # Convert the audio data to AudioData object
+    audio_data = sr.AudioData(
+        audio.tobytes(), sample_rate=sample_rate, sample_width=audio.dtype.itemsize
+    )
+
+    # Convert the audio data to text
+    try:
+        text = r.recognize_google(audio_data, show_all=False)
+        return text
+    except sr.UnknownValueError:
+        return None
+
 @app.route('/audio_feed_thread')
 def audio_feed():
     device = sd.default.device
@@ -376,6 +393,17 @@ def audio_feed():
 
     # Save the recorded audio to a WAV file
     wavfile.write("recording.wav", sample_rate, audio)
+
+    # Convert the audio data to text
+    text = recognize_google(audio, sample_rate)
+
+    # Check if speech is recognized or not
+    if text:
+        print("Voice recognized:", text)
+        return text
+    else:
+        print("No voice recognized.")
+        return None
 
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
