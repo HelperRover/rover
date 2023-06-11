@@ -41,7 +41,9 @@
       <div class="video-container"><img id="video" width="640" height="480"></div>
       <div class="thermal-container"><img id="thermal"></div>
     </div>
-    <audio id="audio" controls src="recording.wav"></audio>
+    <audio id="audio" controls>
+      <source id="audioSource" src="recording.wav" type="audio/wav">
+    </audio>
     <button onclick="makeGetRequest()">Record</button>
   </div>
 
@@ -73,19 +75,7 @@
 
   <script>
     function makeGetRequest() {
-      fetch('http://' + location.hostname + ':8084/audio_feed_thread')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log(data);
-        })
-        .catch(error => {
-          console.error('There was a problem with the fetch operation:', error);
-        });
+      fetch('http://' + location.hostname + ':8084/audio_feed_thread', {mode: 'no-cors'})
     }
 
   </script>

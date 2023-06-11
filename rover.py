@@ -50,6 +50,10 @@ sensor = DistanceSensor(echo = pinEcho, trigger = pinTrigger)
 
 app = Bottle()
 
+@app.hook('after_request')
+def enable_cors():
+    response.headers['Access-Control-Allow-Origin'] = '*'
+
 @app.route('/')
 def index():
     return static_file('index.html', root='./')
@@ -359,24 +363,19 @@ def audio_feed():
     channels = 1
 
     duration = 0.1 # adjust as needed
-    
-    while True:
-        # Record audio from the microphone
-        print("Listening... Press 'q' to quit.")
-        audio = sd.rec(
-            int(sample_rate * 5),
-            samplerate=sample_rate,
-            channels=channels,
-            device=device,
-        )
-        sd.wait()
 
-        # Save the recorded audio to a WAV file
-        wavfile.write("recording.wav", sample_rate, audio)
+    # Record audio from the microphone
+    print("Listening...")
+    audio = sd.rec(
+        int(sample_rate * 5),
+        samplerate=sample_rate,
+        channels=channels,
+        device=device,
+    )
+    sd.wait()
 
-         # Check if the user wants to quit
-        if input("Press 'q' to quit, or any other key to continue: ") == "q":
-            break
+    # Save the recorded audio to a WAV file
+    wavfile.write("recording.wav", sample_rate, audio)
 
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
