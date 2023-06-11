@@ -354,12 +354,26 @@ def audio_feed():
 
     audio_queue = Queue()
 
+    class AudioSettings:
+        def __init__(self, sample_rate, channels, dtype):
+            self.sample_rate = sample_rate
+            self.channels = channels
+            self.dtype = dtype
+            self.itemsize = np.dtype(dtype).itemsize
+
+    # Set the desired sample rate, channels, and dtype
+    sample_rate = 44100
+    channels = 1
+    dtype = np.float32
+
+    audio_settings = AudioSettings(sample_rate, channels, dtype)
+
     def callback(indata, outdata, frames, time, status):
         audio_data = indata.tolist()
         audio_queue.put(audio_data)
 
     try:
-        with sd.Stream(callback=callback):
+        with sd.Stream(callback=callback, samplerate=audio_settings.sample_rate, channels=audio_settings.channels, dtype=audio_settings.dtype):
             while not ws.closed:
                 if not audio_queue.empty():
                     audio_data = audio_queue.get()
@@ -368,23 +382,29 @@ def audio_feed():
                     flattened_audio_data = [item for sublist in audio_data for item in sublist]
 
                     # Convert list of float values to bytes
-                    audio_data_bytes = np.array(flattened_audio_data, dtype=np.float32).tobytes()
+                    audio_data_bytes = np.array(flattened_audio_data, dtype=audio_settings.dtype).tobytes()
 
                     # Convert raw audio data to WAV format
-                    wav_io = BytesIO()
-                    wavfile.write(wav_io, 44100, np.array(audio_data))
+                    sample_width = audio_settings.itemsize * audio_settings.channels
+                    audio_segment = AudioSegment(
+                        audio_data_bytes,
+                        frame_rate=audio_settings.sample_rate,
+                        sample_width=sample_width,
+                        channels=audio_settings.channels
+                    )
+                    play(audio_segment)
+                    wav_buffer = BytesIO()
+                    audio_segment.export(wav_buffer, format="wav")
 
-                    print("Sending: ", wav_io.getvalue()[:100])  # Print first 100 bytes
+                    print("Sending: ", wav_buffer.getvalue()[:100])  # Print first 100 bytes
 
                     # Send audio data over WebSocket
-                    ws.send(wav_io.getvalue(), binary=True)
+                    ws.send(wav_buffer.getvalue(), binary=True)
 
                 sleep(0.1)
 
     except WebSocketError:
         pass
-
-
 
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
