@@ -41,6 +41,7 @@
       <div class="video-container"><img id="video" width="640" height="480"></div>
       <div class="thermal-container"><img id="thermal"></div>
     </div>
+    <audio id="audio" controls></audio>
   </div>
 
   <script>
@@ -68,6 +69,23 @@
       document.getElementById('thermal').src = 'data:image/jpeg;base64,' + data.thermal_image;
     };
   </script>
+
+<script>
+  const audio = document.getElementById('audio');
+  const ws = new WebSocket('ws://localhost:8084');
+  ws.binaryType = 'arraybuffer';
+  ws.onmessage = function(event) {
+    const arrayBuffer = event.data;
+    const audioContext = new AudioContext();
+    audioContext.decodeAudioData(arrayBuffer, function(buffer) {
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start();
+      audio.srcObject = source;
+    });
+  };
+</script>
 
   <!-- This is the script file with all the javascript -->
   <script src="script.js"></script>

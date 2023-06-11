@@ -20,6 +20,8 @@ from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
 
+import sounddevice as sd
+
 automatic_mode = False
 turn_speed = 0.4
 left_speed = 0.4
@@ -338,6 +340,22 @@ def thermal_feed():
     except WebSocketError:
         pass
 
+@app.route('/audio_feed_thread')
+def audio_feed():
+    ws = request.environ.get('wsgi.websocket')
+    if not ws:
+        abort(400, 'Expected WebSocket request.')
+
+    duration = 0.1 # adjust as needed
+    
+    try:
+        while True:
+            data = sd.rec(int(duration * sd.default.samplerate), channels=1)
+            ws.send(data.tobytes())
+    
+    except WebSocketError:
+        pass
+
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
     server.serve_forever()
@@ -350,6 +368,10 @@ def start_thermal_feed_server():
     server = WSGIServer(('0.0.0.0', 8083), app, handler_class=WebSocketHandler)
     server.serve_forever()
 
+def start_audio_feed_server():
+    server = WSGIServer(('0.0.0.0', 8084), app, handler_class=WebSocketHandler)
+    server.serve_forever()
+
 if __name__ == '__main__':
     video_thread = threading.Thread(target=start_video_feed_server)
     video_thread.start()
@@ -359,5 +381,8 @@ if __name__ == '__main__':
 
     thermal_thread = threading.Thread(target=start_thermal_feed_server)
     thermal_thread.start()
+
+    audio_thread = threading.Thread(target=start_audio_feed_server)
+    audio_thread.start()
 
     app.run(host='0.0.0.0', port=8080)
