@@ -72,17 +72,19 @@
 
 <script>
   const audio = document.getElementById('audio');
-  const ws = new WebSocket('ws://localhost:8084');
-  ws.binaryType = 'arraybuffer';
-  ws.onmessage = function(event) {
+  var audio_ws = new WebSocket('ws://' + location.hostname + ':8084/audio_feed_thread');
+  audio_ws.binaryType = 'arraybuffer';
+  audio_ws.onmessage = function (event) {
     const arrayBuffer = event.data;
     const audioContext = new AudioContext();
-    audioContext.decodeAudioData(arrayBuffer, function(buffer) {
+    audioContext.decodeAudioData(arrayBuffer, function (buffer) {
       const source = audioContext.createBufferSource();
       source.buffer = buffer;
       source.connect(audioContext.destination);
       source.start();
       audio.srcObject = source;
+    }, function (error) {
+      console.log('Error decoding audio data:', error);
     });
   };
 </script>
