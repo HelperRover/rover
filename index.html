@@ -45,6 +45,7 @@
       <source id="audioSource" src="recording.wav" type="audio/wav">
     </audio>
     <button onclick="makeGetRequest()">Record</button>
+    <div id="audio-response"></div>
   </div>
 
   <script>
@@ -75,7 +76,14 @@
 
   <script>
     function makeGetRequest() {
-      fetch('http://' + location.hostname + ':8084/audio_feed_thread', {mode: 'no-cors'})
+      function makeGetRequest() {
+        fetch('http://' + location.hostname + ':8084/audio_feed_thread', {mode: 'no-cors'})
+          .then(response => response.text())
+          .then(data => {
+            document.getElementById('audio-response').innerHTML = data;
+          })
+          .catch(error => console.error(error));
+      }
     }
 
   </script>
