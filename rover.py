@@ -8,6 +8,7 @@ from bottle import Bottle, request, response, static_file, view
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 from gevent.pywsgi import WSGIServer
+from gevent import sleep
 
 import amg8833_i2c
 import numpy as np
@@ -22,6 +23,7 @@ import threading
 
 import sounddevice as sd
 from scipy.io import wavfile
+from queue import Queue
 
 automatic_mode = False
 turn_speed = 0.4
@@ -341,23 +343,27 @@ def thermal_feed():
     except WebSocketError:
         pass
 
-def callback(indata, outdata, frames, time, status):
-    if status:
-        print(status)
-    outdata[:] = indata
-
 @app.route('/audio_feed_thread')
 def audio_feed():
-    # ws = request.environ.get('wsgi.websocket')
-    # if not ws:
-    #     abort(400, 'Expected WebSocket request.')
+    ws = request.environ.get('wsgi.websocket')
+    if not ws:
+        abort(400, 'Expected WebSocket request.')
 
-    with sd.Stream(callback=callback):
-        print("Listening... Press 'q' to quit.")
-        while True:
-            response = input()
-            if response == 'q':
-                break
+    audio_queue = Queue()
+
+    def callback(indata, frames, time, status):
+        audio_data = indata.tolist()
+        audio_queue.put(audio_data)
+
+    try:
+        with sd.InputStream(callback=callback):
+            while not ws.closed:
+                if not audio_queue.empty():
+                    audio_data = audio_queue.get()
+                    ws.send(json.dumps({'audio_data': audio_data}))
+                sleep(0.1)
+    except WebSocketError:
+        pass
 
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)

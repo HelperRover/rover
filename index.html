@@ -73,20 +73,19 @@
 <script>
   const audio = document.getElementById('audio');
   var audio_ws = new WebSocket('ws://' + location.hostname + ':8084/audio_feed_thread');
-  audio_ws.binaryType = 'arraybuffer';
-  audio_ws.onmessage = function (event) {
-    const arrayBuffer = event.data;
-    const audioContext = new AudioContext();
-    audioContext.decodeAudioData(arrayBuffer, function (buffer) {
-      const source = audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioContext.destination);
-      source.start();
-      audio.srcObject = source;
-    }, function (error) {
-      console.log('Error decoding audio data:', error);
-    });
+
+  audio_ws.onmessage = (event) => {
+    console.log(event)
+    const data = JSON.parse(event.data);
+    const audioData = data.audio_data;
+    // Process the audio data here
+    console.log(audioData)
   };
+
+  ws.onclose = (event) => {
+    console.log("WebSocket closed");
+  };
+
 </script>
 
   <!-- This is the script file with all the javascript -->
