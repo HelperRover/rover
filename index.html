@@ -77,11 +77,25 @@
   <script>
       function makeGetRequest() {
         console.log('pushed')
+        document.getElementById('audio-response').innerHTML = 'Listening...';
         fetch('http://' + location.hostname + ':8084/audio_feed_thread')
           .then(response => response.text())
           .then(data => {
             console.log(data)
-            document.getElementById('audio-response').innerHTML = data;
+            if (data) {
+              document.getElementById('audio-response').innerHTML = 'Speech Detected';
+              document.getElementById('audio-response').classList.add('speech');
+              document.getElementById('audio-response').classList.remove('no-speech');
+            } else {
+              document.getElementById('audio-response').innerHTML = 'No Speech Detected';
+              document.getElementById('audio-response').classList.add('no-speech');
+              document.getElementById('audio-response').classList.remove('speech');
+            }
+            setTimeout(() => {
+              document.getElementById('audio-response').innerHTML = '';
+              document.getElementById('audio-response').classList.remove('speech');
+              document.getElementById('audio-response').classList.remove('no-speech');
+            }, 5000);
           })
           .catch(error => console.error(error));
       }
