@@ -8,6 +8,7 @@ from bottle import Bottle, request, response, static_file, view
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 from gevent.pywsgi import WSGIServer
+from gevent import sleep
 
 import amg8833_i2c
 import numpy as np
@@ -19,6 +20,14 @@ from scipy import interpolate
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
 import threading
+
+import sounddevice as sd
+from scipy.io import wavfile
+from queue import Queue
+from io import BytesIO
+from pydub import AudioSegment
+from pydub.playback import play
+import speech_recognition as sr
 
 automatic_mode = False
 turn_speed = 0.4
@@ -42,6 +51,10 @@ sensor = DistanceSensor(echo = pinEcho, trigger = pinTrigger)
 
 app = Bottle()
 
+@app.hook('after_request')
+def enable_cors():
+    response.headers['Access-Control-Allow-Origin'] = '*'
+
 @app.route('/')
 def index():
     return static_file('index.html', root='./')
@@ -55,6 +68,10 @@ def index_style():
 @app.route('/script.js')
 def index_javascript():
 	return static_file('script.js', root='./')
+
+@app.route('/recording.wav')
+def index_style():
+	return static_file('recording.wav', root='./')
 
 # This is the forward route. It is typically called via AJAX. 
 @app.route('/forward')
@@ -338,6 +355,56 @@ def thermal_feed():
     except WebSocketError:
         pass
 
+def recognize_google(audio, sample_rate):
+    # Create a recognizer object
+    r = sr.Recognizer()
+
+    # Convert the audio data to AudioData object
+    audio_data = sr.AudioData(
+        audio.tobytes(), sample_rate=sample_rate, sample_width=audio.dtype.itemsize
+    )
+
+    # Convert the audio data to text
+    try:
+        text = r.recognize_google(audio_data, show_all=False)
+        return text
+    except sr.UnknownValueError:
+        return None
+
+@app.route('/audio_feed_thread')
+def audio_feed():
+    device = sd.default.device
+
+    # Set the sample rate and number of channels
+    sample_rate = 44100
+    channels = 1
+
+    duration = 0.1 # adjust as needed
+
+    # Record audio from the microphone
+    print("Listening...")
+    audio = sd.rec(
+        int(sample_rate * 5),
+        samplerate=sample_rate,
+        channels=channels,
+        device=device,
+    )
+    sd.wait()
+
+    # Save the recorded audio to a WAV file
+    wavfile.write("recording.wav", sample_rate, audio)
+
+    # Convert the audio data to text
+    text = recognize_google(audio, sample_rate)
+
+    # Check if speech is recognized or not
+    if text:
+        print("Voice recognized:", text)
+        return text
+    else:
+        print("No voice recognized.")
+        return None
+
 def start_video_feed_server():
     server = WSGIServer(('0.0.0.0', 8081), app, handler_class=WebSocketHandler)
     server.serve_forever()
@@ -350,6 +417,10 @@ def start_thermal_feed_server():
     server = WSGIServer(('0.0.0.0', 8083), app, handler_class=WebSocketHandler)
     server.serve_forever()
 
+def start_audio_feed_server():
+    server = WSGIServer(('0.0.0.0', 8084), app, handler_class=WebSocketHandler)
+    server.serve_forever()
+
 if __name__ == '__main__':
     video_thread = threading.Thread(target=start_video_feed_server)
     video_thread.start()
@@ -359,5 +430,8 @@ if __name__ == '__main__':
 
     thermal_thread = threading.Thread(target=start_thermal_feed_server)
     thermal_thread.start()
+
+    audio_thread = threading.Thread(target=start_audio_feed_server)
+    audio_thread.start()
 
     app.run(host='0.0.0.0', port=8080)
