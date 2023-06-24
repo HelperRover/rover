@@ -151,7 +151,7 @@ def action_automatic():
         return "AUTOMATIC MODE STOPPED"
     
 # Assume desired distance from the wall
-desired_distance = 50.0  # adjust this as per your requirements
+desired_distance = sensorRight.distance * 100
 
 # Initialize PID Controller
 pid = PID()  # adjust PID parameters as needed
