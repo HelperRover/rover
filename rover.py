@@ -149,18 +149,29 @@ def action_automatic():
     else:
         automatic_mode = False
         return "AUTOMATIC MODE STOPPED"
-    
-# Assume desired distance from the wall
-desired_distance = sensorRight.distance * 100
-
-# Initialize PID Controller
-pid = PID()  # adjust PID parameters as needed
 
 def automatic_control():
     global automatic_mode
 
+    # Initialize PID Controller for both left and right sensors
+    pidLeft = PID()  # adjust PID parameters as needed
+    pidRight = PID()  # adjust PID parameters as needed
+
     # Set the rover to go forwards.
     rover.value = (left_speed, right_speed)
+
+    # Convert sensor distance to centimeters.
+    distanceForward = sensorForward.distance * 100
+    distanceRight = sensorRight.distance * 100
+    distanceLeft = sensorLeft.distance * 100
+
+    # Determine which wall to follow based on which sensor is closer at the start
+    followRightWall = distanceRight < distanceLeft
+
+    if followRightWall:
+        desired_distance = distanceRight
+    else:
+        desired_distance = distanceLeft
 
     # Loop until the automatic mode is stopped.
     while automatic_mode:
@@ -175,18 +186,33 @@ def automatic_control():
         print("Right: " + str(distanceRight))
         print("Left: " + str(distanceLeft))
 
-        # calculate error using the right sensor
-        error = desired_distance - distanceRight
+        if followRightWall:
+            # calculate error using the right sensor
+            error = desired_distance - distanceRight
 
-        # update PID controller
-        pid.update(error)
+            # update PID controller
+            pidRight.update(error)
 
-        # get the PID output
-        pid_output = pid.output
+            # get the PID output
+            pid_output = pidRight.output
 
-        # calculate the new speed values
-        left_speed_new = left_speed + pid_output
-        right_speed_new = right_speed - pid_output
+            # calculate the new speed values
+            left_speed_new = left_speed + pid_output
+            right_speed_new = right_speed - pid_output
+
+        else:  # follow left wall
+            # calculate error using the left sensor
+            error = desired_distance - distanceLeft
+
+            # update PID controller
+            pidLeft.update(error)
+
+            # get the PID output
+            pid_output = pidLeft.output
+
+            # calculate the new speed values
+            left_speed_new = left_speed - pid_output
+            right_speed_new = right_speed + pid_output
 
         # ensure the speeds are within acceptable range
         left_speed_new = min(max(left_speed_new, -1), 1)
@@ -200,6 +226,7 @@ def automatic_control():
 
     # Stop the rover when automatic mode is disabled.
     rover.stop()
+
 
 def automatic_control_old():
     global automatic_mode
