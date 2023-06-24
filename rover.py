@@ -29,6 +29,8 @@ from pydub import AudioSegment
 from pydub.playback import play
 import speech_recognition as sr
 
+from PID import PID
+
 automatic_mode = False
 turn_speed = 0.4
 left_speed = 0.4
@@ -148,6 +150,12 @@ def action_automatic():
         automatic_mode = False
         return "AUTOMATIC MODE STOPPED"
     
+# Assume desired distance from the wall
+desired_distance = 50.0  # adjust this as per your requirements
+
+# Initialize PID Controller
+pid = PID()  # adjust PID parameters as needed
+
 def automatic_control():
     global automatic_mode
 
@@ -157,13 +165,37 @@ def automatic_control():
     # Loop until the automatic mode is stopped.
     while automatic_mode:
 
-        # Check if the rover is near an obstacle.
-        if isNearObstacle(howNear):
+        # Convert sensor distance to centimeters.
+        distanceForward = sensorForward.distance * 100
+        distanceRight = sensorRight.distance * 100
+        distanceLeft = sensorLeft.distance * 100
 
-            # Call the avoidObstacle() function.
-            avoidObstacle()
+        # Print all three sensor values.
+        print("Forward: " + str(distanceForward))
+        print("Right: " + str(distanceRight))
+        print("Left: " + str(distanceLeft))
 
-        # Add a small sleep to reduce CPU usage.
+        # calculate error using the right sensor
+        error = desired_distance - distanceRight
+
+        # update PID controller
+        pid.update(error)
+
+        # get the PID output
+        pid_output = pid.output
+
+        # calculate the new speed values
+        left_speed_new = left_speed + pid_output
+        right_speed_new = right_speed - pid_output
+
+        # ensure the speeds are within acceptable range
+        left_speed_new = min(max(left_speed_new, -1), 1)
+        right_speed_new = min(max(right_speed_new, -1), 1)
+
+        # update the rover speeds
+        rover.value = (left_speed_new, right_speed_new)
+
+        # pause for a bit
         time.sleep(0.1)
 
     # Stop the rover when automatic mode is disabled.
