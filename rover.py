@@ -29,7 +29,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 import speech_recognition as sr
 
-from PID import PID
+from pid import PID
 
 automatic_mode = False
 turn_speed = 0.4
