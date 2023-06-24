@@ -34,9 +34,15 @@ turn_speed = 0.4
 left_speed = 0.4
 right_speed = 0.45
 
-# Set pins 17 and 18 to trigger and echo.
-pinTrigger = 17
-pinEcho = 18
+# Set pins for trigger and echo.
+pinTriggerForward = 4
+pinEchoForward = 17
+
+pinTriggerRight = 18
+pinEchoRight = 27
+
+pinTriggerLeft = 22
+pinEchoLeft = 23
 
 # DHT22 sensor connected to pin 25.
 dht22_pin = 25
@@ -47,7 +53,9 @@ reverseTime = 1
 
 # Initialize the rover and sensor.
 rover = CamJamKitRobot()
-sensor = DistanceSensor(echo = pinEcho, trigger = pinTrigger)
+sensorForward = DistanceSensor(echo = pinEchoForward, trigger = pinTriggerForward)
+sensorRight = DistanceSensor(echo = pinEchoRight, trigger = pinTriggerRight)
+sensorLeft = DistanceSensor(echo = pinEchoLeft, trigger = pinTriggerLeft)
 
 app = Bottle()
 
@@ -139,8 +147,29 @@ def action_automatic():
     else:
         automatic_mode = False
         return "AUTOMATIC MODE STOPPED"
-
+    
 def automatic_control():
+    global automatic_mode
+
+    # Set the rover to go forwards.
+    rover.value = (left_speed, right_speed)
+
+    # Loop until the automatic mode is stopped.
+    while automatic_mode:
+
+        # Check if the rover is near an obstacle.
+        if isNearObstacle(howNear):
+
+            # Call the avoidObstacle() function.
+            avoidObstacle()
+
+        # Add a small sleep to reduce CPU usage.
+        time.sleep(0.1)
+
+    # Stop the rover when automatic mode is disabled.
+    rover.stop()
+
+def automatic_control_old():
     global automatic_mode
 
     # Set the rover to go forwards.
