@@ -154,8 +154,8 @@ def automatic_control():
     global automatic_mode
 
     # Initialize PID Controller for both left and right sensors
-    pidLeft = PID()  # adjust PID parameters as needed
-    pidRight = PID()  # adjust PID parameters as needed
+    pidLeft = PID(P=0.002,I=0,D=0.001)  # adjust PID parameters as needed
+    pidRight = PID(P=0.001,I=0,D=0.0005)  # adjust PID parameters as needed
 
     # Set the rover to go forwards.
     rover.value = (left_speed, right_speed)
@@ -204,6 +204,9 @@ def automatic_control():
             # calculate error using the left sensor
             error = desired_distance - distanceLeft
 
+            print(pidLeft.Kp)
+            print(pidLeft.Kd)
+
             # update PID controller
             pidLeft.update(error)
 
@@ -222,7 +225,7 @@ def automatic_control():
         rover.value = (left_speed_new, right_speed_new)
 
         # pause for a bit
-        time.sleep(0.1)
+        time.sleep(0.001)
 
     # Stop the rover when automatic mode is disabled.
     rover.stop()
