@@ -192,6 +192,18 @@ def action_automatic():
 def automatic_control():
     global automatic_mode
 
+    def audio_feed_thread():
+        global num_voices
+        while automatic_mode:
+            if audio_feed():
+                num_voices += 1
+
+    def start_audio_feed_thread():
+        audio_thread = threading.Thread(target=audio_feed_thread)
+        audio_thread.start()
+
+    start_audio_feed_thread()
+
     # Initialize PID Controller for both left and right sensors
     pidLeft = PID(P=0.006,I=0,D=0.004)  # adjust PID parameters as needed
     pidRight = PID(P=0.005,I=0,D=0.0025)  # adjust PID parameters as needed
@@ -220,11 +232,11 @@ def automatic_control():
         distanceRight = sensorRight.distance * 100
         distanceLeft = sensorLeft.distance * 100
 
-        # Call audio feed every 10 seconds
-        if time.time() % 10 == 0:
-            print("Audio feed called")
-            if audio_feed():
-                num_voices += 1
+        # # Call audio feed every 10 seconds
+        # if int(time.time()) % 10 == 0:
+        #     print("Audio feed called")
+        #     if audio_feed():
+        #         num_voices += 1
 
         # Check if there's a wall in front of the robot
         if distanceForward < desired_distance:
