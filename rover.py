@@ -408,6 +408,7 @@ def thermal_feed():
     ax_bgnd = fig.canvas.copy_from_bbox(ax.bbox) # background for speeding up runs
 
     pix_to_read = 64
+    thresh_temp = 28
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0) # this line removes the white space
     try:
         while True:
