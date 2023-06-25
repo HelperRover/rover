@@ -59,6 +59,12 @@ sensorForward = DistanceSensor(echo = pinEchoForward, trigger = pinTriggerForwar
 sensorRight = DistanceSensor(echo = pinEchoRight, trigger = pinTriggerRight)
 sensorLeft = DistanceSensor(echo = pinEchoLeft, trigger = pinTriggerLeft)
 
+# Global sensor values
+max_temp = 0
+num_voices = 0
+num_features = 0
+num_thermals = 0
+
 app = Bottle()
 
 @app.hook('after_request')
@@ -135,6 +141,39 @@ def action_stop():
     # Stop the rover.
     rover.stop()
     return "STOP"
+
+@app.route('/data')
+def action_analyze():
+    # Return dictionary of sensor values
+    global max_temp
+    global num_voices
+    global num_features
+    global num_thermals
+
+    # Put values in dictionary
+    values = {
+        "max_temp": max_temp,
+        "num_voices": num_voices,
+        "num_features": num_features,
+        "num_thermals": num_thermals
+    }
+
+    # Return the dictionary as a JSON object
+    return json.dumps(values)
+
+@app.route('/clear')
+def action_clear():
+    global max_temp
+    global num_voices
+    global num_features
+    global num_thermals
+
+    max_temp = 0
+    num_voices = 0
+    num_features = 0
+    num_thermals = 0
+
+    return "CLEARED"
 
 # This is the automatic route. It is typically called via AJAX.
 @app.route('/automatic')
@@ -291,6 +330,7 @@ def read_temperature():
 
 @app.route('/temperature_feed_thread')
 def temperature_feed():
+    global max_temp
     ws = request.environ.get('wsgi.websocket')
     if not ws:
         abort(400, 'Expected WebSocket request.')
@@ -300,6 +340,9 @@ def temperature_feed():
             temperature_data = read_temperature()
             if temperature_data:
                 ws.send(json.dumps({'temperature_data': temperature_data}))
+                # Add temperature data to global max_temp if it is higher than the current max_temp
+                if float(temperature_data.split(',')[0]) > max_temp:
+                    max_temp = float(temperature_data.split(',')[0])
             time.sleep(1)
 
     except WebSocketError:
