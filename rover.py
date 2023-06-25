@@ -62,7 +62,7 @@ sensorLeft = DistanceSensor(echo = pinEchoLeft, trigger = pinTriggerLeft)
 # Global sensor values
 max_temp = 0
 num_voices = 0
-num_features = 0
+num_faces = 0
 num_thermals = 0
 
 app = Bottle()
@@ -147,14 +147,14 @@ def action_analyze():
     # Return dictionary of sensor values
     global max_temp
     global num_voices
-    global num_features
+    global num_faces
     global num_thermals
 
     # Put values in dictionary
     values = {
         "max_temp": max_temp,
         "num_voices": num_voices,
-        "num_features": num_features,
+        "num_faces": num_faces,
         "num_thermals": num_thermals
     }
 
@@ -165,12 +165,12 @@ def action_analyze():
 def action_clear():
     global max_temp
     global num_voices
-    global num_features
+    global num_faces
     global num_thermals
 
     max_temp = 0
     num_voices = 0
-    num_features = 0
+    num_faces = 0
     num_thermals = 0
 
     return "CLEARED"
@@ -284,6 +284,7 @@ def automatic_control():
 
 @app.route('/video_feed_thread')
 def video_feed():
+    global num_faces
     ws = request.environ.get('wsgi.websocket')
     if not ws:
         abort(400, 'Expected WebSocket request.')
@@ -306,6 +307,8 @@ def video_feed():
             faces = face_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
             )
+
+            num_faces = num_faces + len(faces)
 
             for (x, y, w, h) in faces:
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
