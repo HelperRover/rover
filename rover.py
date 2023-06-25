@@ -220,10 +220,11 @@ def automatic_control():
         distanceRight = sensorRight.distance * 100
         distanceLeft = sensorLeft.distance * 100
 
-        # Print all three sensor values.
-        print("Forward: " + str(distanceForward))
-        print("Right: " + str(distanceRight))
-        print("Left: " + str(distanceLeft))
+        # Call audio feed every 10 seconds
+        if time.time() % 10 == 0:
+            print("Audio feed called")
+            if audio_feed():
+                num_voices += 1
 
         # Check if there's a wall in front of the robot
         if distanceForward < desired_distance:
