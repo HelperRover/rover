@@ -186,6 +186,19 @@ def automatic_control():
         print("Right: " + str(distanceRight))
         print("Left: " + str(distanceLeft))
 
+        # Check if there's a wall in front of the robot
+        if distanceForward < desired_distance:
+            if followRightWall: 
+                # make a sharp left turn, you might need to adjust the speed values
+                rover.value = (-turn_speed, turn_speed)
+            else:  
+                # make a sharp right turn, you might need to adjust the speed values
+                rover.value = (turn_speed, -turn_speed)
+                
+            # pause for a bit, allowing the rover to make the turn
+            time.sleep(0.35)
+            continue
+
         if followRightWall:
             # calculate error using the right sensor
             error = desired_distance - distanceRight
