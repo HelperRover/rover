@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 from scipy import interpolate
+import scipy.ndimage as ndi
 
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
@@ -385,6 +386,8 @@ grid_z = interp(zz) # interpolated image
 
 @app.route('/thermal_feed_thread')
 def thermal_feed():
+    global num_thermals
+
     ws = request.environ.get('wsgi.websocket')
     if not ws:
         abort(400, 'Expected WebSocket request.')
@@ -413,6 +416,13 @@ def thermal_feed():
                 continue
             new_z = interp(np.reshape(pixels, pix_res)) # interpolated image
 
+            # Create a binary image where pixels above the threshold are marked as 'True'
+            binary_img = np.reshape(pixels,pix_res) > thresh_temp
+
+            # Label connected components in the binary image
+            labeled_img, num_labels = ndi.label(binary_img)
+
+            num_thermals = num_thermals + num_labels
 
             T_thermistor = sensor.read_thermistor()
             fig.canvas.restore_region(ax_bgnd)
