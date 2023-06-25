@@ -29,14 +29,22 @@ from pydub import AudioSegment
 from pydub.playback import play
 import speech_recognition as sr
 
+from pid import PID
+
 automatic_mode = False
 turn_speed = 0.4
 left_speed = 0.4
-right_speed = 0.45
+right_speed = 0.5
 
-# Set pins 17 and 18 to trigger and echo.
-pinTrigger = 17
-pinEcho = 18
+# Set pins for trigger and echo.
+pinTriggerForward = 4
+pinEchoForward = 17
+
+pinTriggerRight = 18
+pinEchoRight = 27
+
+pinTriggerLeft = 22
+pinEchoLeft = 23
 
 # DHT22 sensor connected to pin 25.
 dht22_pin = 25
@@ -47,7 +55,9 @@ reverseTime = 1
 
 # Initialize the rover and sensor.
 rover = CamJamKitRobot()
-sensor = DistanceSensor(echo = pinEcho, trigger = pinTrigger)
+sensorForward = DistanceSensor(echo = pinEchoForward, trigger = pinTriggerForward)
+sensorRight = DistanceSensor(echo = pinEchoRight, trigger = pinTriggerRight)
+sensorLeft = DistanceSensor(echo = pinEchoLeft, trigger = pinTriggerLeft)
 
 app = Bottle()
 
@@ -143,82 +153,95 @@ def action_automatic():
 def automatic_control():
     global automatic_mode
 
+    # Initialize PID Controller for both left and right sensors
+    pidLeft = PID(P=0.006,I=0,D=0.004)  # adjust PID parameters as needed
+    pidRight = PID(P=0.005,I=0,D=0.0025)  # adjust PID parameters as needed
+
     # Set the rover to go forwards.
     rover.value = (left_speed, right_speed)
+
+    # Convert sensor distance to centimeters.
+    distanceForward = sensorForward.distance * 100
+    distanceRight = sensorRight.distance * 100
+    distanceLeft = sensorLeft.distance * 100
+
+    # Determine which wall to follow based on which sensor is closer at the start
+    followRightWall = distanceRight < distanceLeft
+
+    if followRightWall:
+        desired_distance = distanceRight
+    else:
+        desired_distance = distanceLeft
 
     # Loop until the automatic mode is stopped.
     while automatic_mode:
 
-        # Check if the rover is near an obstacle.
-        if isNearObstacle(howNear):
+        # Convert sensor distance to centimeters.
+        distanceForward = sensorForward.distance * 100
+        distanceRight = sensorRight.distance * 100
+        distanceLeft = sensorLeft.distance * 100
 
-            # Call the avoidObstacle() function.
-            avoidObstacle()
+        # Print all three sensor values.
+        print("Forward: " + str(distanceForward))
+        print("Right: " + str(distanceRight))
+        print("Left: " + str(distanceLeft))
 
-        # Add a small sleep to reduce CPU usage.
-        time.sleep(0.1)
+        # Check if there's a wall in front of the robot
+        if distanceForward < desired_distance:
+            if followRightWall: 
+                # make a sharp left turn, you might need to adjust the speed values
+                rover.value = (-turn_speed, turn_speed)
+            else:  
+                # make a sharp right turn, you might need to adjust the speed values
+                rover.value = (turn_speed, -turn_speed)
+                
+            # pause for a bit, allowing the rover to make the turn
+            time.sleep(0.3)
+            rover.stop()
+            time.sleep(0.5)
+            rover.value = (left_speed, right_speed)
+            continue
+
+        if followRightWall:
+            # calculate error using the right sensor
+            error = desired_distance - distanceRight
+
+            # update PID controller
+            pidRight.update(error)
+
+            # get the PID output
+            pid_output = pidRight.output
+
+            # calculate the new speed values
+            left_speed_new = left_speed + pid_output
+            right_speed_new = right_speed - pid_output
+
+        else:  # follow left wall
+            # calculate error using the left sensor
+            error = desired_distance - distanceLeft
+
+            # update PID controller
+            pidLeft.update(error)
+
+            # get the PID output
+            pid_output = pidLeft.output
+
+            # calculate the new speed values
+            left_speed_new = left_speed - pid_output
+            right_speed_new = right_speed + pid_output
+
+        # ensure the speeds are within acceptable range
+        left_speed_new = min(max(left_speed_new, -1), 1)
+        right_speed_new = min(max(right_speed_new, -1), 1)
+
+        # update the rover speeds
+        rover.value = (left_speed_new, right_speed_new)
+
+        # pause for a bit
+        time.sleep(0.001)
 
     # Stop the rover when automatic mode is disabled.
     rover.stop()
-
-# Returns True if rover is less than 
-# localHowNear centimeters from object.
-def isNearObstacle(localHowNear):
-
-    # Convert sensor distance to centimeters.
-    distance = sensor.distance * 100
-
-    # Print the distance to the log for debugging
-    # purposes.
-    print("Distance: " + str(distance))
-
-    # If the distance is less than the 
-    # localHowNear distance, return True.
-    if distance < localHowNear:
-        return True
-
-    # Return False otherwise.
-    else:
-        return False
-    
-# This function called to avoid obstacles. It
-# moves backwards for the reverseTime and then 
-# turns right for 0.35 seconds.
-def avoidObstacle():
-
-    # If near an object, stop the rover.
-    rover.stop()
-
-    # Sleep for 0.35 seconds.
-    time.sleep(0.75)
-
-    # As above, the rover is placed in reverse. The
-    # different values are for calibration.
-    rover.value = (-left_speed, -right_speed)
-
-    # Sleep for the reverseTime.
-    time.sleep(reverseTime)
-
-    # Stop the rover.
-    rover.stop()
-
-    # Sleep for 0.35 seconds.
-    time.sleep(0.35)
-
-    # Turn the robot right by setting custom motor speeds.
-    rover.value = (turn_speed, -turn_speed)
-
-    # Sleep for 0.35 seconds.
-    time.sleep(.35)
-
-    rover.stop()
-
-    time.sleep(0.75)
-
-    # Start the rover in new direction.
-    rover.value = (left_speed, right_speed)
-
-    return
 
 @app.route('/video_feed_thread')
 def video_feed():
