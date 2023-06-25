@@ -34,7 +34,7 @@ from pid import PID
 automatic_mode = False
 turn_speed = 0.4
 left_speed = 0.4
-right_speed = 0.45
+right_speed = 0.5
 
 # Set pins for trigger and echo.
 pinTriggerForward = 4
@@ -154,8 +154,8 @@ def automatic_control():
     global automatic_mode
 
     # Initialize PID Controller for both left and right sensors
-    pidLeft = PID(P=0.002,I=0,D=0.001)  # adjust PID parameters as needed
-    pidRight = PID(P=0.001,I=0,D=0.0005)  # adjust PID parameters as needed
+    pidLeft = PID(P=0.006,I=0,D=0.004)  # adjust PID parameters as needed
+    pidRight = PID(P=0.005,I=0,D=0.0025)  # adjust PID parameters as needed
 
     # Set the rover to go forwards.
     rover.value = (left_speed, right_speed)
@@ -196,7 +196,10 @@ def automatic_control():
                 rover.value = (turn_speed, -turn_speed)
                 
             # pause for a bit, allowing the rover to make the turn
-            time.sleep(0.35)
+            time.sleep(0.3)
+            rover.stop()
+            time.sleep(0.5)
+            rover.value = (left_speed, right_speed)
             continue
 
         if followRightWall:
@@ -216,9 +219,6 @@ def automatic_control():
         else:  # follow left wall
             # calculate error using the left sensor
             error = desired_distance - distanceLeft
-
-            print(pidLeft.Kp)
-            print(pidLeft.Kd)
 
             # update PID controller
             pidLeft.update(error)
