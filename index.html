@@ -106,28 +106,37 @@
 
   </script>
 
-  <script>
-    function analyzeData() {
-      var button = document.querySelector('.analyze');
-      if (button.dataset.clicked === 'false') {
-        document.getElementById('response-output').innerHTML = 'Analyzing...';
-        fetch('http://' + location.hostname + ':8080/clear');
-        button.dataset.clicked = 'true';
-      } else {
-        fetch('http://' + location.hostname + ':8080/data')
-          .then(response => response.text())
-          .then(data => {
-            console.log(data)
-            document.getElementById('response-output').innerHTML = data;
-          });
-          setTimeout(() => {
-            document.getElementById('response-output').innerHTML = '';
-          }, 5000);
-        button.dataset.clicked = 'false';
-      }
+<script>
+  function analyzeData() {
+    var button = document.querySelector('.analyze');
+    if (button.dataset.clicked === 'false') {
+      document.getElementById('response-output').innerHTML = 'Analyzing...';
+      fetch('http://' + location.hostname + ':8080/clear');
+      button.dataset.clicked = 'true';
+    } else {
+      fetch('http://' + location.hostname + ':8080/data')
+        .then(response => response.json())
+        .then(data => {
+          console.log(data)
+          let output = '';
+          const customLabels = {
+            'max_temp': 'Maximum Temperature',
+            'num_voices': 'Voices',
+            'num_faces': 'Features',
+            'num_thermals': 'Thermals'
+          };
+          for (const key in data) {
+            output += customLabels[key] + ': ' + data[key] + '<br>';
+          }
+          document.getElementById('response-output').innerHTML = output;
+        });
+        setTimeout(() => {
+          document.getElementById('response-output').innerHTML = '';
+        }, 5000);
+      button.dataset.clicked = 'false';
     }
-  </script>
-
+  }
+</script>
 
   <!-- This is the script file with all the javascript -->
   <script src="script.js"></script>
