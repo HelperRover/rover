@@ -46,11 +46,11 @@ border and content. */
 }
 
 .temperature-container {
-    color: black;
+    color: white;
     position: absolute;
     right: 5px;
     top: 131px;
-    font-size: 23px;
+    font-size: 18px;
 }
 
 .thermal-container img {
@@ -75,7 +75,7 @@ border and content. */
     cursor: pointer;
 }
 
-#audio-response {
+#response-output {
     position: absolute;
     top: 10px;
     color: white;
