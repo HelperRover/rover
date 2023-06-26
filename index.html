@@ -34,7 +34,7 @@
       </div>
       <div class="flex-container">
         <div class="off">Off</div>
-        <div class="analyze">Analyze</div>
+        <div class="analyze" onclick="analyzeData()">Analyze</div>
       </div>
     </div>
     <div class="image-container">
@@ -47,8 +47,9 @@
       <audio id="audio" controls>
         <source id="audioSource" src="recording.wav" type="audio/wav">
       </audio>
-      <button id="record" onclick="makeGetRequest()">Listen</button>
-      <div id="audio-response"></div>
+      <button id="record" onclick="analyzeAudio()">Listen</button>
+      <div id="response-output"></div>
+
     </div>
   </div>
 
@@ -79,31 +80,52 @@
   </script>
 
   <script>
-      function makeGetRequest() {
-        console.log('pushed')
-        document.getElementById('audio-response').innerHTML = 'Listening...';
-        fetch('http://' + location.hostname + ':8084/audio_feed_thread')
+    function analyzeAudio() {
+      document.getElementById('response-output').innerHTML = 'Listening...';
+      fetch('http://' + location.hostname + ':8084/audio_feed_thread')
+        .then(response => response.text())
+        .then(data => {
+          console.log(data)
+          if (data) {
+            document.getElementById('response-output').innerHTML = 'Speech Detected';
+            document.getElementById('response-output').classList.add('speech');
+            document.getElementById('response-output').classList.remove('no-speech');
+          } else {
+            document.getElementById('response-output').innerHTML = 'No Speech Detected';
+            document.getElementById('response-output').classList.add('no-speech');
+            document.getElementById('response-output').classList.remove('speech');
+          }
+          setTimeout(() => {
+            document.getElementById('response-output').innerHTML = '';
+            document.getElementById('response-output').classList.remove('speech');
+            document.getElementById('response-output').classList.remove('no-speech');
+          }, 5000);
+        })
+        .catch(error => console.error(error));
+    }
+
+  </script>
+
+  <script>
+    function analyzeData() {
+      var button = document.querySelector('.analyze');
+      if (button.dataset.clicked === 'false') {
+        document.getElementById('response-output').innerHTML = 'Analyzing...';
+        fetch('http://' + location.hostname + ':8080/clear');
+        button.dataset.clicked = 'true';
+      } else {
+        fetch('http://' + location.hostname + ':8080/data')
           .then(response => response.text())
           .then(data => {
             console.log(data)
-            if (data) {
-              document.getElementById('audio-response').innerHTML = 'Speech Detected';
-              document.getElementById('audio-response').classList.add('speech');
-              document.getElementById('audio-response').classList.remove('no-speech');
-            } else {
-              document.getElementById('audio-response').innerHTML = 'No Speech Detected';
-              document.getElementById('audio-response').classList.add('no-speech');
-              document.getElementById('audio-response').classList.remove('speech');
-            }
-            setTimeout(() => {
-              document.getElementById('audio-response').innerHTML = '';
-              document.getElementById('audio-response').classList.remove('speech');
-              document.getElementById('audio-response').classList.remove('no-speech');
-            }, 5000);
-          })
-          .catch(error => console.error(error));
+            document.getElementById('response-output').innerHTML = data;
+          });
+          setTimeout(() => {
+            document.getElementById('response-output').innerHTML = '';
+          }, 5000);
+        button.dataset.clicked = 'false';
       }
-
+    }
   </script>
 
 
