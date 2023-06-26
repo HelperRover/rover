@@ -196,8 +196,7 @@ def automatic_control():
     def audio_feed_thread():
         global num_voices
         while automatic_mode:
-            if audio_feed():
-                num_voices += 1
+            audio_feed()
 
     def start_audio_feed_thread():
         audio_thread = threading.Thread(target=audio_feed_thread)
@@ -466,6 +465,7 @@ def recognize_google(audio, sample_rate):
 
 @app.route('/audio_feed_thread')
 def audio_feed():
+    global num_voices
     device = sd.default.device
 
     # Set the sample rate and number of channels
@@ -489,6 +489,10 @@ def audio_feed():
 
     # Convert the audio data to text
     text = recognize_google(audio, sample_rate)
+
+    # If speech is recognized, increment num_voices
+    if text:
+        num_voices = num_voices + 1
 
     # Check if speech is recognized or not
     if text:
