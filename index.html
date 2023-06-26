@@ -14,32 +14,36 @@
     <div class="navigation-container">
       <div class="flex-container">
         <!-- Clicking this div calls robotMove(1) -->
-        <div class="forward" onclick="robotMove(1)">Forward</div>
+        <div class="forward" onclick="robotMove(1)">&#8593;</div>
       </div>
       <div class="flex-container">
         <!-- Clicking this div calls robotMove(2) -->
-        <div class="left" onclick="robotMove(2)">Left</div>
+        <div class="left" onclick="robotMove(2)">&#8592;</div>
         <!-- Clicking this div calls robotMove(5) -->
-        <div class="stop" onclick="robotMove(5)">Stop</div>
+        <div class="stop" onclick="robotMove(5)">&#x25A0</div>
         <!-- Clicking this div calls robotMove(3) -->
-        <div class="right" onclick="robotMove(3)">Right</div>
+        <div class="right" onclick="robotMove(3)">&#8594;</div>
       </div>
       <div class="flex-container">
         <!-- Clicking this div calls robotMove(4) -->
-        <div class="backward" onclick="robotMove(4)">Backward</div>
+        <div class="backward" onclick="robotMove(4)">&#8595;</div>
       </div>
       <div class="flex-container">
         <!-- New container with the "automatic" class -->
         <div class="automatic" onclick="robotMove(6)">Automatic</div>
       </div>
       <div class="flex-container">
-        <div class="temperature-display">Temp: &nbsp; <span id="temperature-value">N/A</span></div>
-        <div class="humidity-display">Humidity: &nbsp; <span id="humidity-value">N/A</span></div>
+        <div class="off">Off</div>
+        <div class="analyze">Analyze</div>
       </div>
     </div>
     <div class="image-container">
       <div class="video-container"><img id="video" width="640" height="480"></div>
       <div class="thermal-container"><img id="thermal"></div>
+      <div class="temperature-container">
+        <div class="temperature-display">Temp: &nbsp; <span id="temperature-value">N/A</span></div>
+        <div class="humidity-display">Humidity: &nbsp; <span id="humidity-value">N/A</span></div>
+      </div>
       <audio id="audio" controls>
         <source id="audioSource" src="recording.wav" type="audio/wav">
       </audio>

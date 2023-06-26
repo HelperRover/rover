@@ -33,11 +33,6 @@ border and content. */
     width: 150px;
 }
 
-div.temperature-display, 
-div.humidity-display {
-    background: #4caf50;
-}
-
 .image-container {
     position: relative;
 }
@@ -48,6 +43,14 @@ div.humidity-display {
     right: 0;
     width: 160px;
     height: 120px;
+}
+
+.temperature-container {
+    color: black;
+    position: absolute;
+    right: 5px;
+    top: 131px;
+    font-size: 23px;
 }
 
 .thermal-container img {
@@ -77,4 +80,16 @@ div.humidity-display {
     top: 10px;
     color: white;
     left: 10px;
+}
+
+.flex-container .analyze {
+    background: rgb(0, 123, 0);
+}
+
+.flex-container .off {
+    background: rgb(123, 0, 0);
+}
+
+.left, .right, .forward, .backward, .stop {
+    font-size: 80px;
 }
