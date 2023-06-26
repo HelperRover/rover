@@ -14,37 +14,43 @@
     <div class="navigation-container">
       <div class="flex-container">
         <!-- Clicking this div calls robotMove(1) -->
-        <div class="forward" onclick="robotMove(1)">Forward</div>
+        <div class="forward" onclick="robotMove(1)">&#8593;</div>
       </div>
       <div class="flex-container">
         <!-- Clicking this div calls robotMove(2) -->
-        <div class="left" onclick="robotMove(2)">Left</div>
+        <div class="left" onclick="robotMove(2)">&#8592;</div>
         <!-- Clicking this div calls robotMove(5) -->
-        <div class="stop" onclick="robotMove(5)">Stop</div>
+        <div class="stop" onclick="robotMove(5)">&#x25A0</div>
         <!-- Clicking this div calls robotMove(3) -->
-        <div class="right" onclick="robotMove(3)">Right</div>
+        <div class="right" onclick="robotMove(3)">&#8594;</div>
       </div>
       <div class="flex-container">
         <!-- Clicking this div calls robotMove(4) -->
-        <div class="backward" onclick="robotMove(4)">Backward</div>
+        <div class="backward" onclick="robotMove(4)">&#8595;</div>
       </div>
       <div class="flex-container">
         <!-- New container with the "automatic" class -->
         <div class="automatic" onclick="robotMove(6)">Automatic</div>
       </div>
       <div class="flex-container">
-        <div class="temperature-display">Temp: &nbsp; <span id="temperature-value">N/A</span></div>
-        <div class="humidity-display">Humidity: &nbsp; <span id="humidity-value">N/A</span></div>
+        <div class="off">Off</div>
+        <div class="analyze" onclick="analyzeData()">Analyze</div>
       </div>
     </div>
     <div class="image-container">
       <div class="video-container"><img id="video" width="640" height="480"></div>
       <div class="thermal-container"><img id="thermal"></div>
+      <div class="temperature-container">
+        <div class="temperature-display">Temp: &nbsp; <span id="temperature-value">N/A</span></div>
+        <div class="humidity-display">Humidity: &nbsp; <span id="humidity-value">N/A</span></div>
+      </div>
       <audio id="audio" controls>
         <source id="audioSource" src="recording.wav" type="audio/wav">
       </audio>
-      <button id="record" onclick="makeGetRequest()">Listen</button>
+      <button id="record" onclick="analyzeAudio()">Listen</button>
       <div id="audio-response"></div>
+      <div id="data-response"></div>
+
     </div>
   </div>
 
@@ -75,33 +81,68 @@
   </script>
 
   <script>
-      function makeGetRequest() {
-        console.log('pushed')
-        document.getElementById('audio-response').innerHTML = 'Listening...';
-        fetch('http://' + location.hostname + ':8084/audio_feed_thread')
-          .then(response => response.text())
-          .then(data => {
-            console.log(data)
-            if (data) {
-              document.getElementById('audio-response').innerHTML = 'Speech Detected';
-              document.getElementById('audio-response').classList.add('speech');
-              document.getElementById('audio-response').classList.remove('no-speech');
-            } else {
-              document.getElementById('audio-response').innerHTML = 'No Speech Detected';
-              document.getElementById('audio-response').classList.add('no-speech');
-              document.getElementById('audio-response').classList.remove('speech');
-            }
-            setTimeout(() => {
-              document.getElementById('audio-response').innerHTML = '';
-              document.getElementById('audio-response').classList.remove('speech');
-              document.getElementById('audio-response').classList.remove('no-speech');
-            }, 5000);
-          })
-          .catch(error => console.error(error));
-      }
+    function analyzeAudio() {
+      document.getElementById('audio-response').innerHTML = 'Listening...';
+      fetch('http://' + location.hostname + ':8084/audio_feed_thread')
+        .then(response => response.text())
+        .then(data => {
+          console.log(data)
+          if (data) {
+            document.getElementById('audio-response').innerHTML = 'Speech Detected';
+            document.getElementById('audio-response').classList.add('speech');
+            document.getElementById('audio-response').classList.remove('no-speech');
+          } else {
+            document.getElementById('audio-response').innerHTML = 'No Speech Detected';
+            document.getElementById('audio-response').classList.add('no-speech');
+            document.getElementById('audio-response').classList.remove('speech');
+          }
+          setTimeout(() => {
+            document.getElementById('audio-response').innerHTML = '';
+            document.getElementById('audio-response').classList.remove('speech');
+            document.getElementById('audio-response').classList.remove('no-speech');
+          }, 5000);
+        })
+        .catch(error => console.error(error));
+    }
 
   </script>
 
+  <script>
+    var button = document.querySelector('.analyze');
+    button.dataset.clicked = 'false';
+  </script>
+
+  <script>
+    function analyzeData() {
+      var button = document.querySelector('.analyze');
+      if (button.dataset.clicked === 'false') {
+        document.getElementById('data-response').innerHTML = 'Analyzing...';
+        fetch('http://' + location.hostname + ':8080/clear');
+        button.dataset.clicked = 'true';
+      } else {
+        fetch('http://' + location.hostname + ':8080/data')
+          .then(response => response.json())
+          .then(data => {
+            console.log(data)
+            let output = '';
+            const customLabels = {
+              'max_temp': 'Maximum Temperature',
+              'num_voices': 'Voices',
+              'num_faces': 'Features',
+              'num_thermals': 'Thermals'
+            };
+            for (const key in data) {
+              output += customLabels[key] + ': ' + data[key] + '<br>';
+            }
+            document.getElementById('data-response').innerHTML = output;
+          });
+          setTimeout(() => {
+            document.getElementById('data-response').innerHTML = '';
+          }, 5000);
+        button.dataset.clicked = 'false';
+      }
+    }
+  </script>
 
   <!-- This is the script file with all the javascript -->
   <script src="script.js"></script>

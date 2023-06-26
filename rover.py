@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 from scipy import interpolate
+import scipy.ndimage as ndi
 
 from gpiozero import CamJamKitRobot, DistanceSensor
 import time
@@ -58,6 +59,12 @@ rover = CamJamKitRobot()
 sensorForward = DistanceSensor(echo = pinEchoForward, trigger = pinTriggerForward)
 sensorRight = DistanceSensor(echo = pinEchoRight, trigger = pinTriggerRight)
 sensorLeft = DistanceSensor(echo = pinEchoLeft, trigger = pinTriggerLeft)
+
+# Global sensor values
+max_temp = 0
+num_voices = 0
+num_faces = 0
+num_thermals = 0
 
 app = Bottle()
 
@@ -136,6 +143,39 @@ def action_stop():
     rover.stop()
     return "STOP"
 
+@app.route('/data')
+def action_analyze():
+    # Return dictionary of sensor values
+    global max_temp
+    global num_voices
+    global num_faces
+    global num_thermals
+
+    # Put values in dictionary
+    values = {
+        "max_temp": max_temp,
+        "num_voices": num_voices,
+        "num_faces": num_faces,
+        "num_thermals": num_thermals
+    }
+
+    # Return the dictionary as a JSON object
+    return json.dumps(values)
+
+@app.route('/clear')
+def action_clear():
+    global max_temp
+    global num_voices
+    global num_faces
+    global num_thermals
+
+    max_temp = 0
+    num_voices = 0
+    num_faces = 0
+    num_thermals = 0
+
+    return "CLEARED"
+
 # This is the automatic route. It is typically called via AJAX.
 @app.route('/automatic')
 def action_automatic():
@@ -152,6 +192,17 @@ def action_automatic():
 
 def automatic_control():
     global automatic_mode
+
+    def audio_feed_thread():
+        global num_voices
+        while automatic_mode:
+            audio_feed()
+
+    def start_audio_feed_thread():
+        audio_thread = threading.Thread(target=audio_feed_thread)
+        audio_thread.start()
+
+    start_audio_feed_thread()
 
     # Initialize PID Controller for both left and right sensors
     pidLeft = PID(P=0.006,I=0,D=0.004)  # adjust PID parameters as needed
@@ -181,10 +232,11 @@ def automatic_control():
         distanceRight = sensorRight.distance * 100
         distanceLeft = sensorLeft.distance * 100
 
-        # Print all three sensor values.
-        print("Forward: " + str(distanceForward))
-        print("Right: " + str(distanceRight))
-        print("Left: " + str(distanceLeft))
+        # # Call audio feed every 10 seconds
+        # if int(time.time()) % 10 == 0:
+        #     print("Audio feed called")
+        #     if audio_feed():
+        #         num_voices += 1
 
         # Check if there's a wall in front of the robot
         if distanceForward < desired_distance:
@@ -245,6 +297,7 @@ def automatic_control():
 
 @app.route('/video_feed_thread')
 def video_feed():
+    global num_faces
     ws = request.environ.get('wsgi.websocket')
     if not ws:
         abort(400, 'Expected WebSocket request.')
@@ -267,6 +320,8 @@ def video_feed():
             faces = face_cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
             )
+
+            num_faces = num_faces + len(faces)
 
             for (x, y, w, h) in faces:
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -291,6 +346,7 @@ def read_temperature():
 
 @app.route('/temperature_feed_thread')
 def temperature_feed():
+    global max_temp
     ws = request.environ.get('wsgi.websocket')
     if not ws:
         abort(400, 'Expected WebSocket request.')
@@ -300,6 +356,9 @@ def temperature_feed():
             temperature_data = read_temperature()
             if temperature_data:
                 ws.send(json.dumps({'temperature_data': temperature_data}))
+                # Add temperature data to global max_temp if it is higher than the current max_temp
+                if float(temperature_data.split(',')[0]) > max_temp:
+                    max_temp = float(temperature_data.split(',')[0])
             time.sleep(1)
 
     except WebSocketError:
@@ -326,6 +385,8 @@ grid_z = interp(zz) # interpolated image
 
 @app.route('/thermal_feed_thread')
 def thermal_feed():
+    global num_thermals
+
     ws = request.environ.get('wsgi.websocket')
     if not ws:
         abort(400, 'Expected WebSocket request.')
@@ -346,6 +407,7 @@ def thermal_feed():
     ax_bgnd = fig.canvas.copy_from_bbox(ax.bbox) # background for speeding up runs
 
     pix_to_read = 64
+    thresh_temp = 28
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0) # this line removes the white space
     try:
         while True:
@@ -354,6 +416,13 @@ def thermal_feed():
                 continue
             new_z = interp(np.reshape(pixels, pix_res)) # interpolated image
 
+            # Create a binary image where pixels above the threshold are marked as 'True'
+            binary_img = np.reshape(pixels,pix_res) > thresh_temp
+
+            # Label connected components in the binary image
+            labeled_img, num_labels = ndi.label(binary_img)
+
+            num_thermals = num_thermals + num_labels
 
             T_thermistor = sensor.read_thermistor()
             fig.canvas.restore_region(ax_bgnd)
@@ -396,6 +465,7 @@ def recognize_google(audio, sample_rate):
 
 @app.route('/audio_feed_thread')
 def audio_feed():
+    global num_voices
     device = sd.default.device
 
     # Set the sample rate and number of channels
@@ -419,6 +489,10 @@ def audio_feed():
 
     # Convert the audio data to text
     text = recognize_google(audio, sample_rate)
+
+    # If speech is recognized, increment num_voices
+    if text:
+        num_voices = num_voices + 1
 
     # Check if speech is recognized or not
     if text:
