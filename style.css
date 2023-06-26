@@ -75,11 +75,19 @@ border and content. */
     cursor: pointer;
 }
 
-#response-output {
+#data-response {
     position: absolute;
     top: 10px;
     color: white;
     left: 10px;
+}
+
+#audio-response {
+    position: absolute;
+    color: white;
+    bottom: 28px;
+    right: 120px;
+    font-size: 20px;
 }
 
 .flex-container .analyze {
